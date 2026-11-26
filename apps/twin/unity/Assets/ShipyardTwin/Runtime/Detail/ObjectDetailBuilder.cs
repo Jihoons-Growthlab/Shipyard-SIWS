@@ -509,19 +509,21 @@ namespace ShipyardTwin
             }
             else if (kind == "안벽")
             {
-                var berths = (ctx.Snapshot.berth_assignments ?? new BerthAssignmentRow[0]).Where(b => b.berth == t.Id)
+                // Berth assignments and quay shifts name a 선석 (berths.id), not the quay facility it lies along.
+                var points = BerthsAlong(ctx, f, t.Id);
+                var berths = (ctx.Snapshot.berth_assignments ?? new BerthAssignmentRow[0]).Where(b => points.Contains(b.berth))
                     .Select(b => (Row: b, Start: Day(b.start_day), End: Day(b.end_day))).Where(b => b.Start.HasValue).OrderBy(b => b.Start).ToList();
                 var current = berths.Where(b => b.Start <= ctx.AsOf && (b.End ?? b.Start) >= ctx.AsOf).Select(b => b.Row.hull).ToList();
                 d.Status = current.Count > 0 ? "접안 " + string.Join(", ", current) : "비어 있음";
                 d.StatusLevel = current.Count > 0 ? StatusLevel.Info : StatusLevel.Offline;
                 AddOccupancy(d, "선석 배정", berths.Select(b => (b.Row.hull, b.Start.Value, b.End ?? b.Start.Value)), ctx.AsOf, "이 안벽에 등록된 선석 배정이 없습니다.");
-                var shifts = (ctx.Snapshot.quay_shifts ?? new QuayShiftRow[0]).Where(s => s.to_point == t.Id || s.from_point == t.Id).ToList();
+                var shifts = (ctx.Snapshot.quay_shifts ?? new QuayShiftRow[0]).Where(s => points.Contains(s.to_point) || points.Contains(s.from_point)).ToList();
                 if (shifts.Count > 0)
                 {
                     var section = d.Sections.Last();
                     foreach (var s in shifts.OrderBy(s => s.plan_day).Where(s => Day(s.plan_day) >= ctx.AsOf.AddDays(-30)).Take(5))
                     {
-                        section.Row(Short(s.plan_day) + " " + s.hull, (s.to_point == t.Id ? "입항 " : "출항 ") + (s.shift_purpose ?? string.Empty) +
+                        section.Row(Short(s.plan_day) + " " + s.hull, (points.Contains(s.to_point) ? "입항 " : "출항 ") + (s.shift_purpose ?? string.Empty) +
                                                                        (string.IsNullOrEmpty(s.actual_day) ? " · 예정" : " · 완료"),
                             string.IsNullOrEmpty(s.actual_day) ? StatusLevel.Info : StatusLevel.Normal);
                     }
@@ -695,6 +697,31 @@ namespace ShipyardTwin
         private static DateTime Monday(DateTime day) => day.Date.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
         private static string Short(string day) => Day(day)?.ToString("yyyy-MM-dd") ?? (string.IsNullOrEmpty(day) ? null : day);
+
+        /// <summary>
+        /// The quay itself and the 선석 shift points along it: the ERP <c>quay</c> of each berth, or for a snapshot without
+        /// it the berth whose registered position falls on this quay's footprint (widened 30 m toward the water).
+        /// </summary>
+        private static HashSet<string> BerthsAlong(DetailContext ctx, ShipyardTwin.Facility quay, string quayId)
+        {
+            var set = new HashSet<string>(StringComparer.Ordinal) { quayId };
+            foreach (var p in ctx.Snapshot.shift_points ?? new ShiftPointRow[0])
+            {
+                if (p?.id == null || p.kind != "선석") continue;
+                if (!string.IsNullOrEmpty(p.quay))
+                {
+                    if (p.quay == quayId) set.Add(p.id);
+                }
+                else if (quay != null && quay.HasFootprint && p.position_known && p.position != null)
+                {
+                    var rad = quay.heading_deg * Mathf.Deg2Rad;
+                    float dx = p.position.x - quay.x, dy = p.position.y - quay.y;
+                    float along = dx * Mathf.Cos(rad) + dy * Mathf.Sin(rad), across = -dx * Mathf.Sin(rad) + dy * Mathf.Cos(rad);
+                    if (Mathf.Abs(along) <= quay.size_x_m / 2f && Mathf.Abs(across) <= quay.size_y_m / 2f + 30f) set.Add(p.id);
+                }
+            }
+            return set;
+        }
 
         private static string Point(DetailContext ctx, string id) =>
             ctx.Snapshot.shift_points?.FirstOrDefault(p => p.id == id)?.name ?? Facility(ctx, id) ?? id;

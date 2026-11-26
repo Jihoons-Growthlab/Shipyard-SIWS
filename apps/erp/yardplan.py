@@ -125,7 +125,8 @@ def overlaps(a0, a1, b0, b1):
 def shift_points(db, include_positions=False):
     points = [{'id': row['id'], 'name': row['name'], 'kind': '도크'}
               for row in db.execute("SELECT id, name FROM locations WHERE kind='도크' ORDER BY id")]
-    points += [{'id': row['id'], 'name': row['name'], 'kind': '선석'} for row in db.execute('SELECT id, name FROM berths ORDER BY id')]
+    points += [{'id': row['id'], 'name': row['name'], 'kind': '선석', 'quay': row['quay']}
+               for row in db.execute('SELECT id, name, quay FROM berths ORDER BY id')]
     points += [{'id': key, 'name': name, 'kind': '해상'} for key, name in SEA_POINTS.items()]
     if include_positions:
         positions = {row['id']: {k: row[k] for k in ('x', 'y', 'z', 'heading_deg')}
