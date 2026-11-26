@@ -15,7 +15,7 @@ ShipyardTwin/
 │   ├── erp_client.py        ERP 로그인·조회
 │   └── paths.py             기본 경로
 ├── unity/               Unity 6000.3 프로젝트 (Built-in 렌더 파이프라인)
-│   ├── Packages/manifest.json   ../UnityModule 패키지를 file:로 참조
+│   ├── Packages/manifest.json   ../../shared/unity-packages 패키지를 file:로 참조
 │   └── Assets/ShipyardTwin/
 │       ├── Authoring/       shipyard.build.json, dock.csv, Dashboard.uxml ← 씬·UI는 여기만 고친다
 │       ├── Runtime/         재생 코드 + Resources/ShipyardTwin (내보낸 데이터·모델)
@@ -29,7 +29,7 @@ ShipyardTwin/
 이웃 프로젝트:
 - `../erp`: 데이터 원천.
 - `../../tools/migration/migrate.py`: ERP 업로드.
-- `../UnityModule`: 모듈 라이브러리. 참조만 한다.
+- `../../shared/unity-packages`: 모듈 라이브러리. 참조만 한다.
 
 ## 데이터 갱신
 
@@ -57,6 +57,23 @@ python3 pipeline/export_twin.py SN2040                  # → data/twin/SN2040.t
 - 대상 ERP에는 `hull_geometry`, `block_geometry`, `location_geometry`, `hull_placements` 입력과 `erection_timeline` 조회가 있어야 한다(ShipYard-ERP `geometry.py`).
 - 블록 모델은 생성한 예시 모델이며 설계 CAD가 아니다. 실제 CAD를 받으면 OBJ로 변환해 같은 `model_asset` 경로에 넣는다. 축과 원점은 docs/TWIN_FORMAT.md를 따른다.
 
+### 오프라인 데모 호선 확장
+
+Unity에 포함된 야드 스냅샷은 SN2040·SN2046과 SN2050~SN2059를 제공합니다. SN2050~SN2059의 모의 탑재 계획과 3D 모델을 ERP 원본 스냅샷에서 다시 만들려면 `apps/twin`에서 실행합니다.
+
+```bash
+python3 pipeline/expand_demo_fleet.py data/twin/yard.snapshot.json --models \
+  -o unity/Assets/ShipyardTwin/Runtime/Resources/ShipyardTwin/yard.snapshot.json
+```
+
+확장 데이터는 기존 호선 제원과 도크 예약을 사용합니다. 기존 간이 블록은 데모 스냅샷에서 교체됩니다.
+
+ERP에도 같은 블록 분할(모델 ID 동일)과 공정 실적을 넣으려면 `apps/erp/shipyard-postgres seed_hull_simulation.py`를 실행합니다. 이 스크립트는 ERP 쓰기 규칙을 그대로 거칩니다.
+
+- 대상과 등록 내용: SN2050~2059의 간이 블록을 교체합니다. SN2040·2046에는 도크 예약, 주요 일정, 크레인, 공정 실적을 넣습니다.
+- 진척: 오늘까지 조립 공수, 준비 항목 확인, 이동, 탑재 검사 실적을 기록합니다.
+- 거부된 블록: ERP가 탑재를 거부한 블록(미결 NCR 등)은 사유와 함께 오늘 이후로 재계획합니다.
+
 ## 실행과 검증
 
 ```bash
@@ -69,6 +86,7 @@ tools/capture.sh 31 /tmp/day31.png crane   # 31일차 정지 화면, 크레인 �
 - 에디터: 메뉴에서 **ShipyardTwin > Create Scene**을 누르고 Play한다.
 - 앱 옵션:
   - `-shipyard-seek <일>`: 재생 위치로 이동
+  - 웹(Portal `/twin/`): `?hull=<호선>&block=<블록>`이면 그 호선을 선택하고 탑재 패널을 연 뒤, 블록 인양 직전으로 재생 위치를 옮긴다(생산 관제에서 연결).
   - `-shipyard-pause`: 정지 상태로 시작(기본도 정지이며, `-shipyard-seek`와 함께 쓸 때 위치만 옮기고 멈춰 둔다)
   - `-shipyard-panel`: 탑재 패널을 연 상태로 시작(`tools/capture.sh`가 쓴다)
   - `-shipyard-depth`: 수심도를 켠 상태로 시작
@@ -78,13 +96,20 @@ tools/capture.sh 31 /tmp/day31.png crane   # 31일차 정지 화면, 크레인 �
 - 화면 구성(`Authoring/Dashboard.uxml`, `Dashboard.uss`, `DashboardShellView`):
   - 앱을 열면 조선소 화면과 왼쪽 아이콘 바만 보이고, 시뮬레이션은 정지 상태다.
   - 아이콘 바: 블록 탑재(패널 열기/닫기), 수심도(켜기/끄기), 맨 아래 챗봇.
+  - 패널 목록은 휠·드래그·터치로 스크롤하며 스크롤바는 표시하지 않는다.
+  - 바다(`Resources/ShipyardTwin/Shaders/Water.shader`, `Runtime/Yard/SeaSurface.cs`)는 바람 방향 주위로 퍼진 진행파 8개(파장 4~90 m)로 움직인다.
+    - 카메라 주변: 원형 격자(약 4,600 정점)가 카메라를 따라다니며 실제로 출렁인다.
+    - 먼 바다: 평면 한 장이며 같은 파도로 음영만 낸다. 도크 자리는 두 메시 모두 비운다.
+    - 표현: 물마루 거품, 해를 등진 물마루의 투과광, 거리에 따라 거칠어지는 하늘 반사가 있다.
+    - 성능: 짧은 파도는 멀어질수록 약해져 깜빡임이 없다. 프래그먼트 비용은 해석식 파도 8개와 텍스처 읽기 2회다.
+  - 작은 크레인(`Runtime/Yard/RailCraneView.cs`): ERP `crane_rails`의 지브·러핑 크레인을 레일과 함께 그리고, 장비 모니터링과 같은 규칙(실제 시각 기준 120초 주기)으로 레일 위를 움직인다. 마우스를 올리면 ERP 장비명, 정격, 배치 시설, 현재 상태가 나온다. ERP에 레일이 있으면 scenery의 고정 크레인은 그리지 않는다.
   - 탑재 패널은 왼쪽에서 밀려 나오며, 안의 **재생** 버튼을 눌러야 시뮬레이션이 시작된다. 챗봇 패널과 같은 자리를 쓰므로 한 번에 하나만 열린다. Esc로 닫는다.
   - 종료 버튼은 화면 오른쪽 위에 있다. 확인 창을 거쳐 앱에서는 앱을 닫고, 에디터에서는 Play Mode만 끝낸다.
   - 수심도: 국립해양조사원 실측 수심(150m 격자)을 바다 위에 2m 간격 색 단계와 등심선으로 겹친다. 오른쪽 아래 범례에 범위와 출처를 표시한다. 앱 옵션 `-shipyard-depth`로 켠 채 시작한다.
   - 패널이나 아이콘 바 위에서 시작한 드래그와 휠은 카메라를 움직이지 않는다.
   - 이름 표시(`HoverTooltipView`, `HoverTarget`): 블록(ID, 호선·구역·중량), 건물·시설(ERP 시설명, 없으면 ID), 선박(선명, 없으면 호선 번호. 용골 받침 위)에 마우스를 올리면 커서 옆에 표시한다. 선박 위 블록은 블록 정보가 우선이다. 매 프레임 레이캐스트 한 번으로 커서 아래 가장 가까운 대상만 고른다. 지형·포장면·바다·호안·골리앗 크레인은 가림막이라 그 뒤의 대상은 표시하지 않고, 아직 탑재되지 않은 블록은 콜라이더가 꺼진다. UI 위, 마우스 버튼을 누른 동안(카메라 드래그), 화면 밖에서는 숨긴다. 툴팁은 화면 안에 머물고 마우스 입력을 받지 않는다.
 - 패널: 날짜, 탑재 단계, 상태(대기/재생 중/일시정지/완료), 블록 수와 중량 진척, 재생/속도/처음부터 버튼, 인양 중인 블록(구역, 중량, 크기, 선행 블록), 탑재 이력.
-- 카메라: 왼쪽 드래그로 화면 평면을 따라 이동(커서 아래 지점이 커서를 따라감), 오른쪽 드래그로 회전, 가운데 드래그로 지면을 따라 이동, 휠로 확대한다. 패널·아이콘 바 위에서 시작한 드래그와 그 위의 휠은 카메라를 움직이지 않는다. 1 전체, 2 선수, 3 선미, 4 크레인, 5 위, F 인양 블록 따라가기. 앱 옵션 `-shipyard-view <overview|bow|stern|crane|top|follow>`로 시작 시점을 정한다.
+- 카메라: 왼쪽·가운데 드래그로 땅을 잡고 이동(커서 아래 지점이 커서를 따라감), 오른쪽 드래그나 Alt/Ctrl+왼쪽 드래그로 회전, 휠로 커서 쪽 확대, 더블클릭으로 그 지점을 중심에 둔다. WASD·화살표로 이동, Q/E로 회전, +/-로 확대한다. 패널·아이콘 바 위에서 시작한 드래그와 그 위의 휠은 카메라를 움직이지 않는다. 1 전체, 2 선수, 3 선미, 4 크레인, 5 위, 6 조선소, F 인양 블록 따라가기. 앱 옵션 `-shipyard-view <overview|bow|stern|crane|top|follow>`로 시작 시점을 정한다.
 - 장면 구성:
   - `ShipView`: 도장된 블록. 인양 중인 블록은 주황빛으로 표시한다.
   - `GantryCraneView`: 골리앗 크레인. 고정 A프레임 다리와 유연 다리, 두 줄 박스 거더, 상부 트롤리(훅 2개, 슬링 4줄), 하부 트롤리, 바퀴 대차, 운전실이 있다.
@@ -143,7 +168,7 @@ tools/capture.sh 31 /tmp/day31.png crane   # 31일차 정지 화면, 크레인 �
 
 - **생성:** `python3 pipeline/fetch_bathymetry.py` (위성 영역 기준이므로 `fetch_satellite.py` 다음에 실행한다).
   - 원천: 공공데이터포털 "해양수산부 국립해양조사원_자연과학용 수심정보 조회"(15142498). 호출 주소는 `https://apis.data.go.kr/1192136/waterDepth/GetWaterDepthApiService`이고, 응답 필드는 `lat`, `lot`, `dpwt`(m)다. 공공누리 1유형이라 출처를 표시해야 한다.
-  - 인증키: 환경변수 `BATHYMETRY_SERVICE_KEY`나 `ShipyardTwin/.env.bathymetry`에서만 읽고, 출력물에는 남기지 않는다.
+  - 인증키: 환경변수 `BATHYMETRY_SERVICE_KEY`나 `apps/twin/.env.bathymetry`에서만 읽고, 출력물에는 남기지 않는다.
   - 범위의 위경도는 소수 5자리까지만 받는다(6자리면 `INVALID_REQUEST_PARAMETER_ERROR`). 한 번에 300점씩 받는다.
   - 출력: `data/bathymetry/points.json`(원본 점, 캐시이며 `--refresh`로 다시 받음), 위성 격자에 맞춘 `bathymetry.bytes`·`bathymetry.json` → Unity `Resources/ShipyardTwin/Satellite/bathymetry_grid.bytes`, `bathymetry_meta.json`.
 - **현재 자료:** 509점, -0.15 ~ 10.4 m. 위성 격자의 바다 칸 99%를 덮는다. 수심 기준면(약최저저조면/평균해면)은 API 문서에 없어 "미확인"으로 표시한다.
@@ -165,6 +190,11 @@ tools/capture.sh 31 /tmp/day31.png crane   # 31일차 정지 화면, 크레인 �
 - **해안 경사:** 30m 표고 자료에서는 언덕 높이가 물 바로 옆 칸에 놓여 절벽처럼 보인다. 그래서 물가에서 육지는 최대 1:2로만 오르고, 해저는 1:12~1:4로 완만하게 깊어지게 다듬는다.
 - **조선소 앞바다 준설:** 피어 선석(피어 양옆 60m)부터 1도크 게이트 너머 10m까지는 모두 물속으로 내린다. 그 바깥(피어 쪽 150m, 1도크 쪽 60m)과 내륙 쪽 120m에서는 낮은 땅(해변·갯벌, 약 10m 이하)만 서서히 내리고, 언덕과 섬은 원래 모양을 지킨다. 1.5m 넘게 깎인 비탈은 위성 영상이 늘어나 보이지 않도록 흙·자갈 색 재질로 덮는다.
 - **자연 해안:** 물가를 따라 반투명한 흰 파도 띠를 두르고(밀려오듯 움직임), 조선소 주변 물가에 바위를 흩어 놓는다.
+- **부지 경계(육지 쪽):** 가상 야드가 실제 들판·산과 자연스럽게 이어지도록 처리한다.
+  - 담장: 포장면 경계 3 m 안쪽에 조립식 콘크리트 담장(높이 2.4 m, 기둥 4 m 간격, 갓돌)을 두른다. 도로가 지나거나 나란히 달리는 곳(정문)과 크레인 레일 옆은 비운다.
+  - 녹지 사면: 바깥 32 m, 그리고 정지로 2.5 m 넘게 깎거나 쌓은 땅(90 m까지)은 위성 사진 대신 풀 덮인 사면 재질로 칠한다.
+  - 가로수: 9 m와 19 m 두 줄로 심는다.
+  - 성능: 담장, 기둥, 줄기, 수관은 구역마다 메시 하나로 합쳐 그린다.
 - **포장면과 호안:** 부지 윤곽(시설을 감싸는 볼록 다각형 + 28m, 해안선에서 자름)으로 포장면을 깐다.
   - 해안선(안벽·도크 게이트 쪽)은 수직 안벽이다.
   - 바깥이 바다인 다른 변은 1:1.5 사석 경사 호안이다. 경사면에는 바위를, 물가에는 테트라포드를 두 줄로 놓는다.

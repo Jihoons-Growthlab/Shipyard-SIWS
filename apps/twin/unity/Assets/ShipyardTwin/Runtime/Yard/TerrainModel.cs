@@ -39,7 +39,7 @@ namespace ShipyardTwin
             }
 
             _loaded = true;
-            var json = Resources.Load<TextAsset>(SatelliteGround.Folder + "satellite");
+            var json = Resources.Load<TextAsset>(SatelliteGround.Folder + "satellite_meta");
             var bytes = Resources.Load<TextAsset>(SatelliteGround.Folder + "terrain");
             if (json == null || bytes == null)
             {

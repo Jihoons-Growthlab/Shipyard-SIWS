@@ -57,7 +57,8 @@ namespace ShipyardTwin
         {
             var settings = context.Settings.SetDefaults(new ShipyardTwinSettings(), _settingsJson != null ? _settingsJson.text : null);
             context.Services.Register(new ShipPalette(_baseMaterial));
-            var asOfText = AsOfOverride ?? ArgumentValue(AsOfArgument) ?? settings.AsOf;
+            context.Services.Register(new YardDisplayLayers());
+            var asOfText = AsOfOverride ?? ArgumentValue(AsOfArgument) ?? WebHost.Query("asof") ?? settings.AsOf;
             var asOf = YardModel.ParseDay(asOfText) ?? DateTime.Today;
 
             var started = Time.realtimeSinceStartup;

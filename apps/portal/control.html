@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>생산 관제 · SIWS</title>
+<link rel="icon" type="image/png" href="/shipyard-icon.png">
+<style>
+*{box-sizing:border-box}
+:root{--ink:#203349;--muted:#587084;--line:#dce5ed;--bg:#f5f7fa;--panel:#fff;--action:#087e8b;--action-tint:#e6f3f4;
+  --plan:#5c7080;--forecast:#e67700;--done:#2b8a3e;--late:#c92a2a;--sim:#7048e8;--unknown:#868e96}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,"Apple SD Gothic Neo",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-height:60px;padding:8px max(16px,calc((100vw - 1320px)/2));background:#fff;border-bottom:1px solid var(--line)}
+header .brand{display:flex;align-items:center;gap:8px;font-weight:800;color:#18374c;text-decoration:none;font-size:17px}
+#viewer{margin-left:auto;color:var(--muted);font-size:13px}
+main{width:min(100% - 32px,1320px);margin:18px auto 40px}
+h1{font-size:23px;letter-spacing:-.04em;margin:0}h2{font-size:16px;margin:0}h3{font-size:15px;margin:0}
+p{margin:0}.muted{color:var(--muted)}
+button,select,.button{font:inherit;font-weight:650;min-height:40px;padding:7px 12px;border-radius:9px;border:1px solid #bed3d7;background:#fff;color:var(--action);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button:hover,.button:hover{background:var(--action-tint)}
+:focus-visible{outline:3px solid #78bec9;outline-offset:2px}[hidden]{display:none!important}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}
+.toolbar select{color:var(--ink);min-width:220px}
+.week{display:flex;align-items:center;gap:4px}.week strong{min-width:150px;text-align:center;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-left:auto;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+#cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.card{display:block;text-align:left;padding:12px 14px;min-height:96px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font-weight:500}
+.card[aria-pressed=true]{border-color:var(--action);box-shadow:inset 0 0 0 1px var(--action)}
+.card b{display:block;font-size:26px;line-height:1.25;font-variant-numeric:tabular-nums}
+.card .label{font-size:12px;color:var(--muted);font-weight:700}
+.card .hint{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.card.late b{color:var(--late)}.card.done b{color:var(--done)}.card.cause b{color:#5f3dc4}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:14px;align-items:start}
+section.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.panel-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.panel-head .muted{font-size:12px}
+.gantt{max-height:490px;overflow:auto;overscroll-behavior:contain;border:1px solid #dce6ec;border-radius:12px;background:#fff}
+.gantt-table{border-spacing:0;table-layout:fixed;width:100%;min-width:665px;font-size:12px}
+.gantt-table col.block-col{width:155px}.gantt-table col.state-col{width:132px}
+.gantt-table th,.gantt-table td{padding:0;vertical-align:middle;border-bottom:1px solid #e8eef2}
+.gantt-table tr:last-child td,.gantt-table tbody tr:last-child th{border-bottom:0}
+.gantt-table thead th{position:sticky;top:0;z-index:3;background:#f4f7fa;color:#466075;height:60px;font-weight:700;border-bottom-color:#d8e4eb}
+.gantt-table .corner,.gantt-table .state-head{text-align:left;padding:0 13px;font-size:11px;letter-spacing:.03em}
+.gantt-table .corner{position:sticky;left:0;z-index:5;box-shadow:1px 0 #dce6ec}
+.gantt-table .date-head{text-align:center;border-left:1px solid #e4ecf1}
+.date-weekday,.date-number{display:block;line-height:1.25}
+.date-weekday{font-size:10px;color:#536c7d;font-weight:650}
+.date-number{margin:3px auto 0;width:25px;height:25px;display:grid;place-items:center;border-radius:7px;color:#15384e;font-size:14px;font-variant-numeric:tabular-nums}
+.gantt-table .weekend{background:#f8fafc}.gantt-table .today{background:#eaf8f5}
+.gantt-table .today .date-number{color:#fff;background:#087b71}
+.gantt-table .block-cell{position:sticky;left:0;z-index:2;background:#fff;text-align:left;box-shadow:1px 0 #e1e9ed}
+.gantt-table tbody tr:nth-child(even) .block-cell,.gantt-table tbody tr:nth-child(even) .state{background:#fafcfd}
+.gantt-table .row-label{display:flex;align-items:flex-start;flex-direction:column;justify-content:center;gap:3px;width:100%;min-height:50px;padding:6px 11px;background:transparent;color:#18384f;border:0;border-radius:0;text-align:left}
+.row-label .id{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:760;font-variant-numeric:tabular-nums}
+.row-label small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#526d7f;font-size:10px}
+.gantt-table .day-cell{height:50px;border-left:1px solid #eff3f6}
+.day-cell-inner{position:relative;display:grid;grid-template-rows:20px 20px;justify-items:center;align-content:center;height:49px}
+.date-track{position:absolute;top:13px;left:var(--track-left,0%);right:var(--track-right,0%);height:2px;background:repeating-linear-gradient(90deg,#bd7c25 0 3px,transparent 3px 6px);opacity:.6;pointer-events:none}
+.track-start{--track-left:50%}.track-end{--track-right:50%}
+.day-slot{position:relative;display:flex;gap:4px;align-items:center;justify-content:center;z-index:1}
+.gantt-table .status-dot,.legend .status-dot{display:inline-grid;place-items:center;width:16px;height:16px;box-sizing:border-box;background:#fff;border-radius:5px;font-size:10px;font-weight:850;line-height:1}
+.status-dot.baseline{border:2px solid #708595;color:#3e5d70}
+.status-dot.forecast{border:1px dashed #a66410;background:#fff3d9;color:#875008}
+.status-dot.accepted{background:#127361;color:white}
+.status-dot.rejected{background:#fbe7e6;color:#a32b29;border:1px solid #eebebe}
+.gantt-table .status-dot:hover{filter:brightness(.9)}
+.gantt-table button.status-dot{height:20px;width:20px;min-height:0;padding:0;font-size:12px}
+.gantt-table .state{padding:0 8px 0 10px;text-align:left;line-height:1.3}
+.gantt-table .state .chip{max-width:100%;white-space:normal;padding-block:3px}
+.gantt-table tr.row-selected td,.gantt-table tr.row-selected th.block-cell{background:#e5f5f2}
+.gantt-table tr.row-selected .block-cell{box-shadow:inset 3px 0 #078578,1px 0 #bbddd7}
+.gantt-table tr:hover:not(.row-selected) .block-cell,.gantt-table tr:hover:not(.row-selected) .state{background:#f0f6f8}
+.gantt-table .empty{text-align:center;padding:28px 14px}
+.gantt-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.gantt-tools .legend{margin:0;gap:8px 12px}.gantt-tools .legend span{font-size:11px}
+.gantt-tools .week button{min-height:34px;padding:5px 9px;font-size:12px}
+.gantt-tools .week strong{min-width:120px;font-size:12px}
+.gantt-scroll-hint{display:none;font-size:11px;margin:0 0 6px}
+.gantt-table .mobile-status{display:none}
+@media(max-width:620px){
+  .gantt{max-height:440px}
+  .gantt-table{min-width:505px}
+  .gantt-table col.block-col{width:104px}.gantt-table col.state-col{width:0}
+  .gantt-table .state,.gantt-table .state-head{display:none}
+  .gantt-table .row-label{padding-inline:7px;gap:2px}
+  .gantt-table .row-label .id{font-size:11px}
+  .gantt-table .row-label .zone{display:none}
+  .gantt-table .mobile-status{display:block;font-weight:650}
+  .gantt-table .mobile-status.late{color:#a32b29}.gantt-table .mobile-status.done{color:#0c6858}
+  .gantt-scroll-hint{display:block}
+}
+.chip{display:inline-flex;align-items:center;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.chip.done{background:#e6f4ea;color:var(--done)}.chip.late{background:#fdecec;color:var(--late)}.chip.plan{background:#eef2f5;color:var(--plan)}
+.chip.forecast{background:#fff3e0;color:#b35c00}.chip.unknown{background:#f1f3f5;color:#5c636a}.chip.sim{background:#f0ebff;color:var(--sim)}
+.empty{padding:20px;text-align:center;color:var(--muted)}
+#detail{position:sticky;top:12px}
+#detail h2{font-size:18px;font-variant-numeric:tabular-nums}
+.facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:10px 0;font-size:13px}
+.facts dt{color:var(--muted)}.facts dd{margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.causes{list-style:none;margin:6px 0 10px;padding:0;display:grid;gap:6px}
+.causes li{border:1px solid var(--line);border-left:4px solid var(--late);border-radius:8px;padding:8px 10px;font-size:13px}
+.causes li.note{border-left-color:var(--forecast)}.causes li.unknown{border-left-color:var(--unknown);color:#495057}
+.causes .kind{font-weight:800;margin-right:6px}
+.causes a,.causes button{min-height:30px;padding:2px 8px;margin-top:4px;font-size:12px}
+.links{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.links .sim{color:var(--sim);border-color:#d3c8fb}
+.minimap{width:100%;height:170px;border:1px solid var(--line);border-radius:10px;background:#eef4f7;margin-top:6px}
+.subhead{margin-top:14px;font-size:13px;font-weight:800;color:#41566a}
+#bottlenecks{margin-top:14px}
+.bars{display:grid;gap:6px}
+.bar{display:grid;grid-template-columns:150px minmax(0,1fr) 40px;gap:10px;align-items:center;width:100%;min-height:36px;border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600;text-align:left;padding:4px 10px}
+.bar[aria-pressed=true]{border-color:var(--action)}
+.bar .fill{height:12px;border-radius:6px;background:var(--late)}
+.bar.unknown .fill{background:var(--unknown)}.bar.forecast .fill{background:var(--forecast)}
+.bar span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.block-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.block-chips button{min-height:34px;font-size:12px;padding:4px 9px;font-variant-numeric:tabular-nums}
+#status{margin:6px 0 0;font-size:12px;color:var(--muted)}
+@media(max-width:980px){.layout{grid-template-columns:1fr}#detail{position:static}#cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){main{width:calc(100% - 20px)}.toolbar select{min-width:0;flex:1}.legend{margin-left:0}
+  .bar{grid-template-columns:110px minmax(0,1fr) 30px}.card{min-height:84px}.card b{font-size:22px}}
+@media(pointer:coarse){button,select,.button{min-height:44px}}
+
+/* SIWS global navigation */
+.siws-nav{--nav-text:#42596c;--nav-current:#00616f;--nav-selected:#e7f2f3;--nav-hover:#f0f5f7;display:flex;align-items:center;justify-content:center;gap:2px;min-width:0;max-width:100%;position:static;padding:0;margin:0;border:0;border-radius:0;background:transparent;box-sizing:border-box}
+.siws-nav a{display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;min-height:38px;padding:6px 9px;border:0;border-radius:7px;background:transparent;color:var(--nav-text);font:600 13px/1.3 system-ui,sans-serif;text-decoration:none;white-space:nowrap;filter:none;box-shadow:none}
+.siws-nav a:hover{background:var(--nav-hover);color:var(--nav-current)}
+.siws-nav a[aria-current="page"]{background:var(--nav-selected);color:var(--nav-current);font-weight:700}
+.siws-nav a:focus-visible{outline:2px solid #178594;outline-offset:-2px}
+.siws-nav svg{width:16px;height:16px;flex:none}
+body>header{padding:10px clamp(12px,2.3vw,32px);column-gap:14px;row-gap:8px}
+body>header>.siws-nav{order:1;margin-inline:auto}
+body>header>:is(.hoon-account,#session-bar,#viewer){order:2;width:auto;margin-left:0}
+@media(max-width:1270px){body>header>.siws-nav{order:3;flex-basis:100%;justify-content:flex-start;border-top:1px solid #e6edf1;padding-top:5px}}
+@media(max-width:640px){.siws-nav,body>header>.siws-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.siws-nav a{min-height:40px;padding-inline:3px;gap:4px;font-size:12px}.siws-nav svg{width:14px;height:14px}}
+
+
+
+/* Fixed, single-row SIWS header. */
+body{padding-top:72px}
+body>header{position:fixed;inset:0 0 auto;z-index:2000;box-sizing:border-box;display:grid;grid-template-columns:minmax(200px,1fr) auto minmax(200px,1fr);grid-template-rows:72px;align-items:center;height:72px;min-height:72px;padding:0 24px;gap:0 16px;background:#fff;color:#18374c;border-bottom:1px solid #dce5ed}
+body>header>:first-child{grid-column:1;grid-row:1;min-width:0;margin:0}
+body>header>:is(.hoon-account,#session-bar,#viewer){grid-column:3;grid-row:1;justify-self:end;order:0;width:auto;margin:0;flex-wrap:nowrap}
+body>header>.siws-nav{grid-column:2;grid-row:1;order:0;position:static;inset:auto;display:flex;align-items:center;justify-content:center;flex-basis:auto;width:auto;height:72px;margin:0;padding:0;border:0;background:transparent;--nav-text:#42596c;--nav-current:#00616f;--nav-selected:#e7f2f3;--nav-hover:#f0f5f7}
+body>header>.siws-nav a{min-height:38px;padding:6px 10px;font-size:13px}
+body>header .hoon-lockup{display:inline-flex;align-items:center;gap:10px;color:#18374c;white-space:nowrap}
+body>header .hoon-word{display:inline-flex;align-items:center;gap:0}
+body>header .hoon-word img{display:block;width:36px;height:36px;object-fit:contain;mix-blend-mode:multiply;filter:grayscale(1) invert(1) contrast(2) url(#hoon-ink)}
+body>header .hoon-word b{font:italic 700 41px/.86 "Snell Roundhand","Apple Chancery","Brush Script MT",cursive;letter-spacing:-.05em;padding:0 3px 4px 0}
+body>header .hoon-industry{display:inline-block;font:750 10px/1.4 system-ui;letter-spacing:.11em;padding-left:10px;border-left:1px solid #9eb2c0}
+body>header .erp-product,body>header .erp-help-links{display:none}
+body>header .brand{color:inherit;text-decoration:none}
+@media(max-width:900px){
+ body>header{grid-template-columns:auto minmax(0,1fr) auto;padding:0 10px;column-gap:6px}
+ body>header>.siws-nav{justify-content:center;overflow-x:auto;min-width:0}
+ body>header>.siws-nav a{padding:6px;font-size:11px;gap:3px;flex-shrink:0}
+ body>header>.siws-nav svg{display:none}
+ body>header .hoon-word img{width:25px;height:25px}
+ body>header .hoon-word b{font-size:29px}
+ body>header .hoon-industry{font-size:7px;letter-spacing:0;padding-left:4px}
+ body>header .hoon-lockup{gap:4px}
+ body>header>:is(.hoon-account,#session-bar,#viewer){font-size:11px;max-width:140px}
+}
+@media(max-width:560px){body>header .hoon-industry{max-width:46px;white-space:normal}body>header>.siws-nav{justify-content:flex-start}body>header>.siws-nav a{padding-inline:5px}}
+
+.cause-grid{max-height:224px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:5px;align-content:start}
+.cause-grid:focus-visible{outline:2px solid var(--action);outline-offset:2px}
+.block-chips.cause-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,148px),1fr));max-height:176px}
+.block-chips.cause-grid[hidden]{display:none}
+.detail-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:14px}
+.detail-actions .detail-action{display:grid;grid-template-columns:17px minmax(0,1fr) auto;align-items:center;gap:6px;min-height:42px;padding:7px 9px;border:1px solid #d6e4e8;border-radius:9px;background:#fff;color:#2c5466;text-align:left;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.detail-actions .location-action{grid-column:1/-1;background:#e8f5f4;border-color:#bddbdc;color:#075c67}
+.detail-actions .detail-action:hover{background:#eaf4f5;border-color:#8fbfc4}
+.detail-action svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.detail-action .action-arrow{color:#526e7d}
+@media(pointer:coarse){.detail-actions .detail-action{min-height:44px}}
+.view-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+.view-tabs button[aria-pressed=true]{color:#fff;background:#086c77;border-color:#086c77}
+.workstream{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.workstream .panel-head{justify-content:space-between}
+.worklist{display:grid;gap:7px;max-height:425px;overflow:auto;overscroll-behavior:contain}
+.workrow{border:1px solid var(--line);border-radius:9px;padding:9px 10px;overflow-wrap:anywhere}
+.workrow-head{display:flex;align-items:baseline;justify-content:space-between;gap:5px 10px;flex-wrap:wrap}
+.workrow p,.workrow a,.workdocs{font-size:12px;margin-top:4px}
+.workdocs{display:flex;gap:5px 12px;flex-wrap:wrap}
+.workrow a{color:#086471;text-underline-offset:3px}
+.workrow .button{min-height:32px}
+@media(max-width:720px){.workstream{grid-template-columns:1fr}.worklist{max-height:330px}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <filter id="hoon-ink" color-interpolation-filters="sRGB">
+    <feColorMatrix type="matrix" values=".973 0 0 0 .027  0 .639 0 0 .361  0 0 .596 0 .404  0 0 0 1 0"/>
+  </filter>
+</svg>
+<header>
+  <a class="brand" href="/"><span class="hoon-lockup" role="img" aria-label="Hoon Heavy Industries"><span class="hoon-word" aria-hidden="true"><img src="/shipyard-icon.png" alt="" width="42" height="42"><b>oon</b></span><span class="hoon-industry" aria-hidden="true">HEAVY INDUSTRIES</span></span></a>
+  
+  <span id="viewer"></span>
+<nav class="siws-nav" aria-label="SIWS 화면 이동">
+  <a href="/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-8 9 8M5 10v10h14V10m-10 10v-6h6v6"/></svg><span>포털 홈</span></a>
+  <a aria-current="page" href="/control"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 15v-4m4 4V7m4 8v-6"/></svg><span>생산 관제</span></a>
+  <a href="/erp/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8m-8 6h8"/></svg><span>생산관리 ERP</span></a>
+  <a href="/twin/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3zm0 9 8-4.5M12 12 4 7.5M12 12v9"/></svg><span>디지털 트윈</span></a>
+</nav>
+</header>
+<main>
+  <h1>생산 관제</h1>
+  <p class="muted">호선별 계획과 실적을 확인하고, 필요한 ERP 기록을 엽니다.</p>
+  <div class="toolbar">
+    <label class="muted" for="hull">호선</label>
+    <select id="hull" aria-label="호선 선택"></select>
+  </div>
+  <p id="hull-lifecycle" class="panel muted" hidden></p>
+  <div class="view-tabs" id="views" role="group" aria-label="관제 보기" hidden>
+    <button type="button" data-view="erection" aria-pressed="true">블록 탑재</button>
+    <button type="button" data-view="outfit" aria-pressed="false">의장·자재</button>
+    <button type="button" data-view="yard" aria-pressed="false">도크·안벽</button>
+  </div>
+  <p id="status" class="muted" role="status"></p>
+  <div id="erection-view">
+  <div id="cards" role="group" aria-label="이번 주 판단 카드"></div>
+  <div class="layout">
+    <section class="panel" aria-labelledby="gantt-title">
+      <div class="panel-head"><h2 id="gantt-title">주간 탑재 계획과 실적</h2><span class="muted" id="gantt-note"></span></div>
+      <div class="gantt-tools">
+    <div class="week" id="week-tools" role="group" aria-label="표시 주차 이동">
+      <button type="button" id="prev" aria-label="이전 주">◀</button>
+      <strong id="week-label"></strong>
+      <button type="button" id="next" aria-label="다음 주">▶</button>
+      <button type="button" id="this-week">이번 주</button>
+    </div>
+    <div class="legend" id="erection-legend" aria-label="표시 구분">
+      <span><i class="status-dot baseline" aria-hidden="true"></i>기준일</span><span><i class="status-dot forecast" aria-hidden="true">↦</i>변경 예정</span>
+      <span><i class="status-dot accepted" aria-hidden="true">✓</i>검사 합격</span><span><i class="status-dot rejected" aria-hidden="true">×</i>검사 불합격</span>
+    </div>
+
+      </div>
+      <p class="gantt-scroll-hint muted">가로로 밀어서 나머지 날짜를 확인하세요.</p>
+      <div id="gantt" class="gantt" tabindex="0" role="region" aria-label="주간 탑재 간트"></div>
+    </section>
+    <section class="panel" id="detail" aria-live="polite" aria-label="블록 상세"><p class="muted">간트의 블록이나 카드를 누르면 계획일·실적일, 원인과 근거 문서, 위치가 나옵니다.</p></section>
+  </div>
+  <section class="panel" id="bottlenecks" aria-labelledby="bottleneck-title">
+    <div class="panel-head"><h2 id="bottleneck-title">호선 병목 · 탑재 검사 합격 전 블록의 원인</h2><span class="muted" id="bottleneck-note"></span></div>
+    <div class="bars" id="bars"></div>
+    <div class="block-chips cause-grid" id="bottleneck-blocks" role="region" aria-label="선택한 원인의 블록 목록" hidden></div>
+  </section>
+  </div>
+  <div id="related-view" class="workstream" aria-label="호선 의장·자재 또는 도크·안벽 현황" hidden></div>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const token = (() => { try { return sessionStorage.getItem('shipyard-token') || ''; } catch { return ''; } })();
+const DAY = 86400000;
+const iso = d => d.toISOString().slice(0, 10);
+const parse = s => new Date(s + 'T00:00:00Z');
+const addDays = (s, n) => iso(new Date(parse(s).getTime() + n * DAY));
+const diffDays = (a, b) => Math.round((parse(a) - parse(b)) / DAY);
+const TODAY = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const mondayOf = s => addDays(s, -((parse(s).getUTCDay() + 6) % 7));
+const PRE_STAGES = new Set(['설계·구매', '가공·조립', '선행의장·도장']);
+let me = null, config = {}, state = {hull: null, block: null, week: mondayOf(TODAY), filter: 'all', cause: null, view: 'erection'};
+let all = {}, hullData = null, facilities = [], hullRequest = 0;
+
+function node(tag, text = '', className = '') {
+  const e = document.createElement(tag);
+  if (text) e.textContent = text;
+  if (className) e.className = className;
+  return e;
+}
+async function api(path) {
+  const response = await fetch('/api/' + path, {headers: token ? {Authorization: 'Bearer ' + token} : {}});
+  if (response.status === 401) throw Object.assign(new Error('SIWS에 로그인한 뒤 다시 열어 주세요.'), {login: true});
+  if (response.status === 403) throw Object.assign(new Error('권한 없음'), {forbidden: true});
+  if (!response.ok) throw new Error('ERP 조회 실패 (' + response.status + ')');
+  return response.json();
+}
+const can = route => (me?.routes || []).includes(route);
+// Full route through the ERP search API (200 rows a page), or null when this account may not read it.
+async function rows(route, params = {}) {
+  if (!can(route)) return null;
+  if (!Object.keys(params).length) return api(route);
+  const out = [];
+  for (let page = 0; ; page++) {
+    const result = await api(route + '?' + new URLSearchParams({...params, size: '200', page: String(page)}));
+    out.push(...result.rows);
+    if (page + 1 >= result.pages) return out;
+  }
+}
+const erp = (route, q) => '/erp/#' + new URLSearchParams({open: route, q});
+function link(text, href, className = '') {
+  const a = node('a', text, 'button ' + className);
+  a.href = href;
+  return a;
+}
+
+const detailIcons = {
+  map:'M20 10c0 5-8 10-8 10s-8-5-8-10a8 8 0 1 1 16 0Z M12 10h.01',
+  plan:'M4 7h16v13H4z M4 11h16 M8 4v5m8-5v5',
+  check:'M5 12l4 4 10-10',
+  list:'M9 6h10M9 12h10M9 18h10M5 6h.01M5 12h.01M5 18h.01',
+  cube:'M12 3l8 4.5v9L12 21l-8-4.5v-9z M4 7.5l8 4.5 8-4.5M12 12v9',
+  chart:'M4 4v16h16M8 14v-3m4 3V8m4 6v-5'
+};
+
+function detailLink(text, href, icon, extra = '') {
+  const anchor = link(text, href, 'detail-action ' + extra);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox','0 0 24 24');
+  svg.setAttribute('aria-hidden','true');
+  const path = document.createElementNS(svg.namespaceURI, 'path');
+  path.setAttribute('d',detailIcons[icon]);
+  svg.append(path);
+  anchor.replaceChildren(svg,node('span',text),node('span','↗','action-arrow'));
+  anchor.lastChild.setAttribute('aria-hidden','true');
+  return anchor;
+}
+
+// ------------------------------------------------------------------ data
+
+async function loadShared() {
+  const optional = route => rows(route).catch(() => null);
+  const [hulls, vessels, plans, records, links, geo, blocks, cfg] = await Promise.all([
+    rows('hulls'), optional('vessel_details'), optional('erection_plans'), optional('erection_records'),
+    optional('erection_links'), optional('location_geo'), optional('blocks'),
+    fetch('/config').then(r => r.ok ? r.json() : {}).catch(() => ({}))]);
+  config = cfg;
+  facilities = geo || [];
+  const blockHull = new Map((blocks || []).map(b => [b.id,b.hull]));
+  const knownHulls = (hulls || []).map(h => h.id).sort((a,b) => b.length - a.length);
+  all = {hulls: hulls || [], vessels: vessels || [], plans: plans || [], records: records || [],
+    erectionAvailable: plans !== null && records !== null, links: links || [], blockHull, knownHulls};
+}
+
+function hullOfBlock(block) {
+  return all.blockHull.get(block) || all.knownHulls.find(hull => block.startsWith(hull + '-'));
+}
+
+// Use the latest inspection, as the ERP hull overview does. Keep failures as history on the timeline.
+function blockStates(records) {
+  const latest = new Map(), passed = new Map(), failed = new Map();
+  for (const r of records) {
+    const previous = latest.get(r.block);
+    if (!previous || r.recorded_at > previous.recorded_at ||
+        (r.recorded_at === previous.recorded_at && r.id > previous.id)) latest.set(r.block, r);
+    if (r.inspection === '불합격') (failed.get(r.block) || failed.set(r.block, []).get(r.block)).push(r);
+  }
+  for (const [block, record] of latest) if (record.inspection === '합격') passed.set(block, record);
+  return {latest, passed, failed};
+}
+function statusOf(plan, latest) {
+  const record = latest.get(plan.block);
+  const pass = record?.inspection === '합격' ? record : null;
+  if (pass) return pass.erect_day > plan.baseline ? {key: 'done', text: '완료 +' + diffDays(pass.erect_day, plan.baseline) + '일'} : {key: 'done', text: '완료'};
+  if (record?.inspection === '불합격') return {key: 'late', text: '검사 불합격'};
+  const due = plan.forecast || plan.baseline;
+  if (due < TODAY) return {key: 'late', text: '예상일 경과 ' + diffDays(TODAY, due) + '일'};
+  if (plan.forecast > plan.baseline) return {key: 'forecast', text: '예상 +' + diffDays(plan.forecast, plan.baseline) + '일'};
+  return {key: 'plan', text: '예정'};
+}
+
+async function loadHull(hull) {
+  const q = {hull};
+  const names = ['blocks', 'block_details', 'activities', 'requirements', 'issues', 'ncrs', 'inspection_points', 'moves',
+    'block_gate_checks', 'block_stock_plans', 'hull_overview'];
+  const [settled, cranes] = await Promise.all([
+    Promise.allSettled(names.map(name => rows(name, q))),
+    rows('crane_assignments', {hull, 'f.crane_work': '블록 탑재'}).catch(() => null)
+  ]);
+  const data = {};
+  const missing = [];
+  names.forEach((name, i) => {
+    const result = settled[i];
+    data[name] = result.status === 'fulfilled' ? result.value : null;
+    if (data[name] === null) missing.push(name);
+  });
+  data.cranes = cranes;
+  data.lifecycle = data.hull_overview?.find(row => row.hull === hull);
+  data.missing = missing;
+  data.plans = all.plans.filter(p => hullOfBlock(p.block) === hull);
+  const ids = new Set(data.plans.map(p => p.block));
+  data.records = all.records.filter(r => ids.has(r.block));
+  Object.assign(data, blockStates(data.records));
+  data.planOf = new Map(data.plans.map(p => [p.block, p]));
+  data.detailOf = new Map((data.block_details || []).map(d => [d.block, d]));
+  data.blockOf = new Map((data.blocks || []).map(b => [b.id, b]));
+  data.preds = new Map();
+  for (const l of all.links) if (ids.has(l.successor_block)) (data.preds.get(l.successor_block) || data.preds.set(l.successor_block, []).get(l.successor_block)).push(l.predecessor_block);
+  data.related = {};
+  return data;
+}
+
+// Causes found in linked ERP records only (material issue, inspection, predecessor work). None found: 미확인.
+function causesOf(block) {
+  const d = hullData, out = [];
+  if (!d) return out;
+  const plan = d.planOf.get(block);
+  for (const n of (d.ncrs || []).filter(n => n.block === block && !n.closed_day))
+    out.push({kind: '품질', text: `NCR ${n.id} 미결 · ${n.description || ''} (발행 ${n.raised_day || '-'})`, route: 'ncrs', q: n.id});
+  for (const p of (d.inspection_points || []).filter(p => p.block === block && p.inspection !== '합격'))
+    out.push({kind: '검사', text: `ITP ${p.id} ${p.item} · ${p.inspection || '검사 기록 없음'}${p.planned_day ? ' (계획 ' + p.planned_day + ')' : ''}`, route: 'inspection_points', q: p.id});
+  const latest = d.latest.get(block);
+  if (latest?.inspection === '불합격') out.push({kind: '검사', text: `탑재 검사 불합격 ${latest.id} (${latest.erect_day}) ${latest.evidence || ''}`, route: 'erection_records', q: latest.id});
+  const activities = (d.activities || []).filter(a => a.block === block);
+  if (d.requirements && d.issues) {
+    const due = plan?.forecast || plan?.baseline || TODAY;
+    const horizon = due > TODAY ? due : TODAY;
+    for (const a of activities) for (const req of d.requirements.filter(r => r.activity === a.id && (!r.need_day || r.need_day <= horizon))) {
+      const issued = d.issues.filter(i => i.requirement === req.id && i.day <= TODAY).reduce((sum, i) => sum + Number(i.qty || 0), 0);
+      if (Number(req.qty) > issued) out.push({kind: '자재', text: `${req.id} ${req.material} 소요 ${req.qty} · 출고 ${issued}${req.need_day ? ' (필요일 ' + req.need_day + ')' : ''}`, route: 'requirements', q: req.id});
+    }
+  }
+  for (const a of activities.filter(a => PRE_STAGES.has(a.stage) && !a.actual))
+    out.push({kind: '선행 작업', text: `${a.id} ${a.stage} 미완료 (예상 ${a.forecast || '-'})`, route: 'activities', q: a.id});
+  for (const p of d.preds.get(block) || []) if (!d.passed.has(p)) {
+    const pp = d.planOf.get(p);
+    out.push({kind: '선행 블록', text: `${p} 탑재 검사 합격 없음 (예상 ${pp?.forecast || '-'})`, block: p});
+  }
+  for (const m of (d.moves || []).filter(m => m.block === block && !m.confirmed_at))
+    out.push({kind: '이동', text: `${m.id} → ${m.destination} 이동 미확정`, route: 'moves', q: m.id});
+  const latestGate = new Map();
+  for (const g of (d.block_gate_checks || []).filter(g => g.block === block)) {
+    const prev = latestGate.get(g.gate);
+    if (!prev || String(g.recorded_at) > String(prev.recorded_at)) latestGate.set(g.gate, g);
+  }
+  for (const g of latestGate.values()) if (g.verdict === '보류')
+    out.push({kind: '준비 보류', text: `${g.gate} 보류 · ${g.evidence || ''}`, route: 'block_gate_checks', q: block});
+  return out;
+}
+
+// ------------------------------------------------------------------ view
+
+function weekItems() {
+  const d = hullData, start = state.week, end = addDays(start, 6);
+  const inWeek = s => s && s >= start && s <= end;
+  return d.plans.filter(p => inWeek(p.baseline) || inWeek(p.forecast) || inWeek(d.passed.get(p.block)?.erect_day)
+      || d.failed.get(p.block)?.some(r => inWeek(r.erect_day)))
+    .sort((a, b) => a.baseline.localeCompare(b.baseline) || a.block.localeCompare(b.block));
+}
+function itemsFor(filter, items) {
+  const d = hullData, start = state.week, end = addDays(start, 6);
+  if (filter === 'plan') return items.filter(p => p.baseline >= start && p.baseline <= end);
+  if (filter === 'done') return items.filter(p => { const day = d.passed.get(p.block)?.erect_day; return day && day >= start && day <= end; });
+  const late = items.filter(p => ['late','forecast'].includes(statusOf(p, d.latest).key));
+  if (filter === 'late') return late;
+  if (filter === 'cause') return late.filter(p => causesOf(p.block).length);
+  if (filter === 'unknown') return late.filter(p => !causesOf(p.block).length);
+  return items;
+}
+
+function renderCards(items) {
+  const late = itemsFor('late', items), known = late.filter(p => causesOf(p.block).length);
+  const first = list => list.slice(0, 3).map(p => p.block.slice(p.block.indexOf('-') + 1)).join(', ') || '없음';
+  const cards = [
+    {key: 'plan', label: '이번 주 계획', value: itemsFor('plan', items).length, hint: '기준 계획일 기준', cls: ''},
+    {key: 'done', label: '확정 실적 (탑재 검사 합격)', value: itemsFor('done', items).length, hint: '재검사 중복 제외 · ' + first(itemsFor('done', items)), cls: 'done'},
+    {key: 'late', label: '지연·변경·검사 불합격', value: late.length, hint: first(late), cls: 'late'},
+    {key: 'cause', label: '원인 확인 / 미확인', value: known.length + ' / ' + (late.length - known.length),
+      hint: known.length ? first(known) + ' · ' + causesOf(known[0].block)[0].kind : '근거 기록 없음은 미확인', cls: 'cause'},
+  ];
+  $('cards').replaceChildren(...cards.map(c => {
+    const b = node('button', '', 'card ' + c.cls);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(state.filter === c.key || (c.key === 'cause' && state.filter === 'unknown')));
+    b.append(node('span', c.label, 'label'), node('b', String(c.value)), node('span', c.hint, 'hint'));
+    b.onclick = () => {
+      state.filter = c.key === 'cause' && state.filter === 'cause' ? 'unknown'
+        : state.filter === c.key || (c.key === 'cause' && state.filter === 'unknown') ? 'all' : c.key;
+      render();
+      const target = itemsFor(state.filter, weekItems())[0];
+      if (target && state.filter !== 'all' && (c.key === 'late' || c.key === 'cause')) selectBlock(target.block);
+    };
+    return b;
+  }));
+}
+
+function renderGantt(items) {
+  const d = hullData, g = $('gantt'), start = state.week;
+  const days = Array.from({length:7}, (_, i) => addDays(start, i));
+  const shown = itemsFor(state.filter, items);
+  const names = {plan:'기준 계획', done:'확정 실적', late:'지연·변경·검사 불합격', cause:'원인 확인', unknown:'원인 미확인'};
+  $('gantt-note').textContent = `${names[state.filter] || '전체'} ${shown.length} / ${items.length}블록`;
+
+  const table = node('table', '', 'gantt-table');
+  table.setAttribute('aria-label', days[0] + '부터 ' + days[6] + '까지의 블록 탑재 일정');
+  const columns = node('colgroup');
+  columns.append(node('col', '', 'block-col'), ...days.map(() => node('col')), node('col', '', 'state-col'));
+  const head = node('thead'), headRow = node('tr');
+  const columnHeader = (text, className) => Object.assign(node('th', text, className), {scope:'col'});
+  headRow.append(columnHeader('탑재 블록', 'corner'));
+  const weekdays = ['월','화','수','목','금','토','일'];
+  days.forEach((day, index) => {
+    const h = columnHeader('', 'date-head' + (day === TODAY ? ' today' : index > 4 ? ' weekend' : ''));
+    h.setAttribute('aria-label', day + ' ' + weekdays[index] + (day === TODAY ? ' 오늘' : ''));
+    h.title = day + (day === TODAY ? ' · 오늘' : '');
+    h.append(node('span', weekdays[index] + (day === TODAY ? ' · 오늘' : ''), 'date-weekday'),
+      node('span', day.slice(8), 'date-number'));
+    headRow.append(h);
+  });
+  headRow.append(columnHeader('현재 상태', 'state-head'));
+  head.append(headRow);
+  const body = node('tbody');
+
+  if (!shown.length) {
+    const empty = node('tr');
+    const cell = node('td', items.length ? '이 조건에 해당하는 블록이 없습니다.' : '이 주의 탑재 일정이 없습니다.', 'empty');
+    cell.colSpan = 9;
+    empty.append(cell);
+    body.append(empty);
+  }
+
+  for (const p of shown) {
+    const pass = d.passed.get(p.block), fails = d.failed.get(p.block) || [], status = statusOf(p, d.latest);
+    const row = node('tr', '', p.block === state.block ? 'row-selected' : '');
+    const block = Object.assign(node('th', '', 'block-cell'), {scope:'row'});
+    const button = Object.assign(node('button', '', 'row-label'), {type:'button'});
+    button.setAttribute('aria-label', p.block + ' 상세 열기');
+    button.setAttribute('aria-pressed', String(p.block === state.block));
+    button.title = p.block;
+    button.onclick = () => selectBlock(p.block);
+    button.append(node('span', p.block, 'id'));
+    const zone = d.detailOf.get(p.block)?.zone;
+    if (zone) button.append(node('small', zone, 'zone'));
+    button.append(node('small', status.text, 'mobile-status ' + status.key));
+    block.append(button);
+    row.append(block);
+
+    const mark = (className, symbol, label) => {
+      const marker = Object.assign(node('button', symbol, 'status-dot ' + className), {type:'button', title:label});
+      marker.setAttribute('aria-label', label + ' · ' + p.block + ' 상세 열기');
+      marker.onclick = () => selectBlock(p.block);
+      return marker;
+    };
+    const changed = p.forecast && p.forecast !== p.baseline;
+    const from = changed && p.forecast < p.baseline ? p.forecast : p.baseline;
+    const until = changed && p.forecast < p.baseline ? p.baseline : p.forecast;
+    days.forEach((day, index) => {
+      const cell = node('td', '', 'day-cell' + (day === TODAY ? ' today' : index > 4 ? ' weekend' : ''));
+      const tracks = node('div', '', 'day-cell-inner');
+      if (changed && day >= from && day <= until) {
+        const segment = node('span', '', 'date-track' + (day === from ? ' track-start' : day === until ? ' track-end' : ''));
+        segment.setAttribute('aria-hidden', 'true');
+        tracks.append(segment);
+      }
+      const planned = node('div', '', 'day-slot'), observed = node('div', '', 'day-slot');
+      if (p.baseline === day) planned.append(mark('baseline', '', '기준일 ' + day));
+      if (changed && p.forecast === day) planned.append(mark('forecast', '↦', '변경 예정일 ' + day));
+      if (pass?.erect_day === day) observed.append(mark('accepted', '✓', '검사 합격 ' + day));
+      const rejected = fails.filter(f => f.erect_day === day);
+      if (rejected.length) observed.append(mark('rejected', '×', `검사 불합격 ${day} · ${rejected.length}건`));
+      tracks.append(planned, observed);
+      cell.append(tracks);
+      row.append(cell);
+    });
+    const stateCell = node('td', '', 'state');
+    stateCell.append(node('span', status.text, 'chip ' + status.key));
+    row.append(stateCell);
+    body.append(row);
+  }
+
+  const sameWeek = g.dataset.week === start && g.dataset.hull === state.hull;
+  const scroll = sameWeek ? {top:g.scrollTop, left:g.scrollLeft} : {top:0, left:0};
+  const focusLabel = g.contains(document.activeElement) ? document.activeElement.getAttribute('aria-label') : null;
+  table.append(columns, head, body);
+  g.replaceChildren(table);
+  g.dataset.week = start;
+  g.dataset.hull = state.hull;
+  g.scrollTo(scroll);
+  if (focusLabel) Array.from(g.querySelectorAll('button')).find(control => control.getAttribute('aria-label') === focusLabel)?.focus({preventScroll:true});
+}
+
+function zoneFacilities(center) {
+  if (!center) return [];
+  return facilities.filter(f => f.size_x_m > 0 && Math.hypot(f.x - center.x, f.y - center.y) < 420);
+}
+// Small plan of the facilities around the block's confirmed position (yard metres, +y up).
+function miniMap(target, plans) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'minimap');
+  svg.setAttribute('role', 'img');
+  const around = zoneFacilities(target);
+  const pts = around.flatMap(f => cornersOf(f)).concat(plans.map(p => [p.x, p.y]));
+  if (!pts.length) return svg;
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs) - 20, x1 = Math.max(...xs) + 20, y0 = Math.min(...ys) - 20, y1 = Math.max(...ys) + 20;
+  svg.setAttribute('viewBox', `${x0} ${-y1} ${x1 - x0} ${y1 - y0}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  svg.setAttribute('aria-label', `${target.name || target.location} 주변 배치도`);
+  const ns = 'http://www.w3.org/2000/svg';
+  for (const f of around) {
+    const poly = document.createElementNS(ns, 'polygon');
+    poly.setAttribute('points', cornersOf(f).map(([x, y]) => `${x},${-y}`).join(' '));
+    const hit = f.location === target.location;
+    poly.setAttribute('fill', hit ? '#ffd8a8' : f.kind === '도크' ? '#d0ebff' : '#e9ecef');
+    poly.setAttribute('stroke', hit ? '#d9480f' : '#adb5bd');
+    poly.setAttribute('stroke-width', hit ? '4' : '1.5');
+    svg.append(poly);
+  }
+  for (const p of plans) {
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', p.x); c.setAttribute('cy', -p.y); c.setAttribute('r', '6');
+    c.setAttribute('fill', 'none'); c.setAttribute('stroke', '#1864ab'); c.setAttribute('stroke-width', '2.5'); c.setAttribute('stroke-dasharray', '4 3');
+    svg.append(c);
+  }
+  return svg;
+}
+function cornersOf(f) {
+  const a = (f.heading_deg || 0) * Math.PI / 180, hx = f.size_x_m / 2, hy = f.size_y_m / 2;
+  return [[-hx, -hy], [hx, -hy], [hx, hy], [-hx, hy]].map(([u, v]) => [f.x + u * Math.cos(a) - v * Math.sin(a), f.y + u * Math.sin(a) + v * Math.cos(a)]);
+}
+
+function renderDetail() {
+  const panel = $('detail'), d = hullData, id = state.block;
+  if (!id || !d?.planOf.has(id)) {
+    panel.replaceChildren(node('p', '간트의 블록이나 카드를 누르면 계획일·실적일, 원인과 근거 문서, 위치가 나옵니다.', 'muted'));
+    return;
+  }
+  const plan = d.planOf.get(id), pass = d.passed.get(id), st = statusOf(plan, d.latest), det = d.detailOf.get(id);
+  const head = node('div');
+  head.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+  head.append(node('h2', id), node('span', st.text, 'chip ' + st.key));
+  const facts = node('dl', '', 'facts');
+  const fact = (k, v) => facts.append(node('dt', k), node('dd', v));
+  fact('호선 · 구역', `${state.hull}${det ? ' · ' + det.zone + ' · ' + det.weight_t + ' t' : ''}`);
+  fact('계획(기준)', plan.baseline);
+  fact('예상', plan.forecast + (plan.forecast !== plan.baseline ? ` (${diffDays(plan.forecast, plan.baseline) > 0 ? '+' : ''}${diffDays(plan.forecast, plan.baseline)}일)` : ''));
+  fact('최신 검사', pass ? `${pass.erect_day} 탑재 검사 합격 (${pass.id})` :
+    d.latest.get(id)?.inspection === '불합격' ? '탑재 검사 불합격 · 재검사 확인' : '탑재 검사 기록 없음');
+  const fails = d.failed.get(id) || [];
+  if (fails.length) fact('불합격 이력', fails.map(f => `${f.id} ${f.erect_day}`).join(', '));
+  if (plan.reason) fact('계획 변경 사유(입력)', plan.reason);
+  const crane = (d.cranes || []).find(c => c.block === id);
+  if (crane) fact('탑재 크레인(계획)', `${crane.equipment} · ${crane.work_day} ${crane.start_hour}시부터 ${crane.hours}시간`);
+  panel.replaceChildren(head, facts);
+
+  if (!pass) {
+    panel.append(node('div', '확인할 사항 · 연결된 ERP 기록', 'subhead'));
+    const list = node('ul', '', 'causes cause-grid');
+    list.tabIndex = 0;
+    list.setAttribute('aria-label','원인과 연결된 ERP 근거');
+    const causes = causesOf(id);
+    for (const c of causes) {
+      const li = node('li');
+      li.append(node('span', c.kind, 'kind'), document.createTextNode(c.text));
+      if (c.route) li.append(document.createElement('br'), link('ERP에서 열기 ↗', erp(c.route, c.q)));
+      if (c.block) { const b = node('button', c.block + ' 보기'); b.type = 'button'; b.onclick = () => selectBlock(c.block); li.append(document.createElement('br'), b); }
+      list.append(li);
+    }
+    if (!causes.length) {
+      const li = node('li', '', 'unknown');
+      li.append(node('span', '미확인', 'kind'), document.createTextNode('연결된 자재 출고·검사·선행 작업 기록에서 원인을 찾지 못했습니다.'));
+      list.append(li);
+    }
+    panel.append(list);
+  }
+
+  // Position: the facility of the last confirmed move (ERP blocks.location); plans apart.
+  panel.append(node('div', '마지막 확정 위치', 'subhead'));
+  const block = d.blockOf.get(id);
+  const fac = block?.location ? facilities.find(f => f.location === block.location) : null;
+  const confirmed = (d.moves || []).filter(m => m.block === id && m.confirmed_at).sort((a, b) => String(b.confirmed_at).localeCompare(String(a.confirmed_at)))[0];
+  const pos = node('dl', '', 'facts');
+  const pf = (k, v) => pos.append(node('dt', k), node('dd', v));
+  if (d.blocks === null) pf('확정 위치', '블록 조회 권한 없음');
+  else if (!block?.location) pf('확정 위치', '위치 미등록');
+  else if (!fac || !(fac.size_x_m > 0)) pf('확정 위치', `${block.location} · 위치 미등록 (시설 좌표 없음)`);
+  else pf('확정 위치', `${fac.name} (${fac.location}) · 시설 단위`);
+  if (confirmed) pf('확정 근거', `${confirmed.id} ${confirmed.origin || '-'} → ${confirmed.destination} · ${String(confirmed.confirmed_at).slice(0, 16).replace('T', ' ')}`);
+  const plans = (d.block_stock_plans || []).filter(s => s.block === id);
+  for (const s of plans) pf('계획 적치', `${s.location} ${s.stock_from}~${s.stock_until || ''} (계획)`);
+  panel.append(pos);
+  if (fac && fac.size_x_m > 0) panel.append(miniMap(fac, plans));
+
+  const links = node('nav', '', 'links detail-actions');
+  links.setAttribute('aria-label','선택 블록 관련 화면');
+  links.append(
+    detailLink('야드 지도에서 보기', '/map#' + new URLSearchParams({block:id, hull:state.hull}), 'map', 'location-action'),
+    detailLink('ERP 탑재 계획', erp('erection_plans', id), 'plan'),
+    detailLink('ERP 탑재 검사 실적', erp('erection_records', id), 'check'),
+    detailLink('ERP 블록 준비 현황', erp('block_readiness', id), 'list')
+  );
+  if (config.web) links.append(detailLink('디지털 트윈', '/twin/?' + new URLSearchParams({hull:state.hull, block:id}), 'cube'));
+  if (crane) links.append(detailLink('장비 ' + crane.equipment, '/equipment/?' + new URLSearchParams({asset:crane.equipment}), 'chart'));
+  panel.append(links);
+}
+
+// Hull-wide bottlenecks: every block without a passing inspection that is due by next week, by its first cause.
+function renderBottlenecks() {
+  const d = hullData, horizon = addDays(TODAY, 7);
+  const open = d.plans.filter(p => !d.passed.has(p.block) && p.forecast <= horizon);
+  $('bottleneck-note').textContent = `${TODAY} 기준 ${horizon}까지 예정인데 합격 기록이 없는 블록 ${open.length}개`;
+  const groups = new Map();
+  for (const p of open) {
+    const causes = causesOf(p.block);
+    const key = causes.length ? causes[0].kind : '미확인';
+    (groups.get(key) || groups.set(key, []).get(key)).push(p.block);
+  }
+  const max = Math.max(1, ...[...groups.values()].map(v => v.length));
+  const order = ['품질', '검사', '자재', '선행 작업', '선행 블록', '이동', '준비 보류', '미확인'];
+  const bars = [...groups.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0])).map(([key, list]) => {
+    const b = node('button', '', 'bar' + (key === '미확인' ? ' unknown' : ''));
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(state.cause === key));
+    const fill = node('span', '', 'fill');
+    fill.style.width = (list.length / max * 100) + '%';
+    const track = node('span');
+    track.append(fill);
+    b.append(node('span', key), track, node('span', String(list.length)));
+    b.onclick = () => { state.cause = state.cause === key ? null : key; renderBottlenecks(); };
+    return b;
+  });
+  $('bars').replaceChildren(...(bars.length ? bars : [node('p', '다음 주까지 남은 블록이 없습니다.', 'muted')]));
+  const chosen = state.cause ? groups.get(state.cause) || [] : [];
+  const blockGrid = $('bottleneck-blocks');
+  blockGrid.hidden = !chosen.length;
+  blockGrid.replaceChildren(...chosen.map(id => {
+    const b = node('button', id);
+    b.type = 'button';
+    b.onclick = () => selectBlock(id, true);
+    return b;
+  }));
+}
+
+const viewRoutes = {
+  outfit: ['outfit_works', 'outfit_orders', 'outfit_conditions', 'outfit_materials'],
+  yard: ['hull_milestones', 'dock_bookings', 'berth_occupancy', 'quay_shifts'],
+};
+const unavailable = '조회 권한 또는 ERP 응답을 확인해 주세요.';
+const missingLabels = {blocks:'블록 위치',block_details:'블록 상세',activities:'공정',requirements:'자재 소요',
+  issues:'자재 출고',ncrs:'NCR',inspection_points:'ITP',moves:'이동 이력',block_gate_checks:'준비 항목',
+  block_stock_plans:'적치 계획',hull_overview:'호선 전체 실적'};
+
+function workPanel(title, items, describe) {
+  const panel = node('section', '', 'panel');
+  const head = node('div', '', 'panel-head');
+  head.append(node('h2', title));
+  if (items) head.append(node('span', items.length + '건', 'muted'));
+  panel.append(head);
+  if (!items?.length) {
+    panel.append(node('p', items ? '등록된 기록이 없습니다.' : unavailable, 'muted'));
+    return panel;
+  }
+  const list = node('div', '', 'worklist');
+  list.tabIndex = 0;
+  list.setAttribute('role', 'region');
+  list.setAttribute('aria-label', title + ' 목록');
+  for (const item of items) {
+    const {label, status, kind, lines, refs} = describe(item);
+    const row = node('div', '', 'workrow');
+    const top = node('div', '', 'workrow-head');
+    top.append(node('strong', label), node('span', status, 'chip ' + kind));
+    row.append(top);
+    for (const line of lines.filter(Boolean)) row.append(node('p', line, 'muted'));
+    const docs = (refs || []).filter(([, route]) => can(route));
+    if (docs.length) {
+      const nav = node('div', '', 'workdocs');
+      for (const [label, route, query] of docs) nav.append(link(label + ' ↗', erp(route, query), 'detail-action'));
+      row.append(nav);
+    }
+    list.append(row);
+  }
+  panel.append(list);
+  return panel;
+}
+
+function outfitPanels(data) {
+  const orders = new Map((data.outfit_orders || []).map(row => [row.work, row]));
+  const conditions = new Map((data.outfit_conditions || []).map(row => [row.id, row.installation_blockers || []]));
+  const works = data.outfit_works?.slice().sort((a,b) => Number(a.work_status === '완료') - Number(b.work_status === '완료') ||
+    a.start_day.localeCompare(b.start_day));
+  return [
+    workPanel('의장 작업 패키지', works, row => {
+      const order = orders.get(row.id), blockers = conditions.get(row.id);
+      const done = order && order.accepted_qty >= order.planned_qty;
+      const missingOrder = data.outfit_orders && !order && row.work_status === '계획';
+      return {label: row.id + ' · ' + row.outfit_zone + ' ' + row.outfit_trade,
+        status: done ? '검사 완료' : missingOrder ? '발행 대기' : row.work_status,
+        kind: done ? 'done' : (blockers?.length || row.work_status === '보류') ? 'late' : 'plan',
+        lines: [row.work_phase + ' · ' + row.start_day + ' ~ ' + row.end_day + (row.work_area ? ' · ' + row.work_area : ''),
+          order ? `${order.system_code} · 계획 ${order.planned_qty} / 설치 ${order.installed_qty} / 검사 합격 ${order.accepted_qty} ${order.outfit_unit}`
+            : data.outfit_orders ? null : '작업지시 조회 불가',
+          !done && blockers?.length ? blockers.join(' · ') : null,
+          !done && !data.outfit_conditions ? '착수 조건 조회 불가' : null,
+          row.schedule_check && row.schedule_check !== '정상' ? row.schedule_check : null],
+        refs: [['ERP 작업 패키지','outfit_works',row.id], ...(order ? [['ERP 작업지시','outfit_orders',order.id]] : [])]};
+    }),
+    workPanel('의장 자재 소요와 출고', data.outfit_materials, row => {
+      const purchases = row.purchases || [];
+      const status = row.remaining_qty <= 0 ? '출고 완료' : row.received_qty >= row.qty ? '출고 대기' :
+        purchases.some(doc => doc.purchase_order) ? '입고 검수 대기' : purchases.length ? '발주 대기' : '미출고';
+      const refs = [['ERP 자재 소요','requirements',row.requirement]];
+      for (const doc of purchases) {
+        refs.push(['구매요청 '+doc.request,'purchase_requests',doc.request]);
+        if (doc.purchase_order) refs.push(['발주 '+doc.purchase_order,'purchase_orders',doc.purchase_order]);
+      }
+      for (const doc of row.receipt_documents || []) refs.push(['입고 '+doc.id,'goods_receipts',doc.id]);
+      for (const doc of row.issue_documents || []) refs.push(['출고 '+doc.id,'issues',doc.id]);
+      return {label: row.material_name || row.material, status, kind: row.remaining_qty <= 0 ? 'done' : 'forecast',
+        lines: [`${row.work} · 필요일 ${row.need_day || '미등록'}`,
+          `소요 ${row.qty} · 검수 합격 입고 ${row.received_qty} · 출고 ${row.issued_qty} · 남은 출고 ${row.remaining_qty} ${row.unit}`], refs};
+    }),
+  ];
+}
+
+function yardPanels(data) {
+  const sorted = (items, field) => items?.slice().sort((a,b) => String(a[field]).localeCompare(String(b[field])));
+  const position = id => {
+    const name = data.berth_occupancy?.find(row => row.berth === id)?.berth_name || facilities.find(row => row.location === id)?.name;
+    return name ? `${name} (${id})` : id;
+  };
+  const event = (title, planned, actual, refs, lines = []) => ({
+    label: title, status: actual ? '실적 등록' : planned < TODAY ? '예정일 경과' : '예정',
+    kind: actual ? 'done' : planned < TODAY ? 'late' : 'plan',
+    lines: ['예정 ' + planned + ' · 실적 ' + (actual || '미등록'), ...lines], refs,
+  });
+  return [
+    workPanel('호선 주요 일정', sorted(data.hull_milestones, 'forecast'), row =>
+      event(row.milestone, row.forecast, row.actual, [['ERP 주요 일정','hull_milestones',row.id]], [row.reason])),
+    workPanel('호선 이동 계획·실적', sorted(data.quay_shifts, 'plan_day'), row =>
+      event(row.shift_purpose, row.plan_day, row.actual_day, [['ERP 이동 기록','quay_shifts',row.id]],
+        [position(row.from_point) + ' → ' + position(row.to_point), row.note])),
+    workPanel('도크 예약', sorted(data.dock_bookings, 'start_day'), row => ({
+      label: position(row.dock), status: '예약', kind: 'plan', lines: [row.start_day + ' ~ ' + row.end_day, row.reason],
+      refs: [['ERP 도크 예약','dock_bookings',row.id]],
+    })),
+    workPanel('선석 배정 계획', sorted(data.berth_occupancy, 'start_day'), row => ({
+      label: (row.berth_name || row.berth) + ' · ' + row.quay, status: '배정', kind: 'plan',
+      lines: [row.start_day + ' ~ ' + row.end_day + ' · ' + row.berth_purpose, row.check !== '정상' ? row.check : null],
+      refs: [['ERP 선석 배정','berth_assignments',row.id]],
+    })),
+  ];
+}
+
+async function renderRelated(view, data) {
+  const panel = $('related-view'), hull = state.hull;
+  panel.replaceChildren(node('p', hull + ' 기록을 불러오는 중…', 'muted'));
+  data.related[view] ??= Promise.allSettled(viewRoutes[view].map(route => rows(route, {hull}))).then(results =>
+    Object.fromEntries(viewRoutes[view].map((route, index) => {
+      const result = results[index];
+      return [route, result.status === 'fulfilled' ? result.value?.filter(row => row.hull === hull) ?? null : null];
+    })));
+  const related = await data.related[view];
+  if (hullData !== data || state.view !== view) return;
+  panel.replaceChildren(...(view === 'outfit' ? outfitPanels(related) : yardPanels(related)));
+}
+
+function render() {
+  if (!hullData) return;
+  const lifecycle = $('hull-lifecycle'), actual = hullData.lifecycle;
+  lifecycle.hidden = false;
+  lifecycle.replaceChildren();
+  if (actual?.lifecycle_status) {
+    lifecycle.append(node('strong', state.hull + ' · ' + actual.lifecycle_status),
+      document.createTextNode(' · 탑재 검사 합격 ' + actual.erection_accepted_count + '/' + actual.erection_planned_count +
+        ' · 진수 실적 ' + (actual.launch_actual || '미등록') + ' · 시운전 실적 ' + (actual.trial_actual || '미등록') +
+        ' · 인도 실적 ' + (actual.delivery_actual || '미등록')));
+    if (actual.actual_shift_day) lifecycle.append(document.createTextNode(
+      ' · 마지막 이동 실적 ' + actual.actual_shift_day + ' ' + actual.actual_shift_point));
+  } else lifecycle.textContent = state.hull + ' · ' + (hullData.hull_overview ? '호선 전체 실적 요약 없음' : '호선 전체 실적 조회 불가');
+  const erection = state.view === 'erection';
+  for (const tab of $('views').querySelectorAll('button')) tab.setAttribute('aria-pressed', String(tab.dataset.view === state.view));
+  $('views').hidden = false;
+  $('week-tools').hidden = $('erection-legend').hidden = $('erection-view').hidden = !erection || !all.erectionAvailable;
+  $('related-view').hidden = erection;
+  $('status').textContent = !erection ? '' : !all.erectionAvailable
+    ? '탑재 계획 또는 검사 실적을 조회할 수 없습니다.'
+    : hullData.missing.length ? '일부 기록 조회 불가 · ' + hullData.missing.map(key => missingLabels[key]).join(', ') : '';
+  if (!erection) { renderRelated(state.view, hullData); return; }
+  if (!all.erectionAvailable) return;
+  const end = addDays(state.week, 6);
+  $('week-label').textContent = `${state.week.slice(5)} ~ ${end.slice(5)}${state.week === mondayOf(TODAY) ? ' (이번 주)' : ''}`;
+  const items = weekItems();
+  renderCards(items);
+  renderGantt(items);
+  renderDetail();
+  renderBottlenecks();
+}
+function writeHash() {
+  const params = {hull: state.hull};
+  if (state.block) params.block = state.block;
+  if (state.week !== mondayOf(TODAY)) params.week = state.week;
+  if (state.view !== 'erection') params.view = state.view;
+  history.replaceState(null, '', '#' + new URLSearchParams(params));
+}
+function selectBlock(id, moveWeek = false) {
+  state.block = id;
+  const plan = hullData.planOf.get(id);
+  if (plan && moveWeek) state.week = mondayOf(plan.forecast || plan.baseline);
+  if (plan && !weekItems().some(p => p.block === id)) state.week = mondayOf(plan.baseline);
+  if (plan && !itemsFor(state.filter, weekItems()).some(p => p.block === id)) state.filter = 'all';
+  writeHash();
+  render();
+  if (matchMedia('(max-width: 980px)').matches) $('detail').scrollIntoView({block: 'start'});   // detail sits below the chart
+}
+async function selectHull(hull, block = null) {
+  const request = ++hullRequest;
+  state.hull = hull;
+  state.block = block;
+  $('hull').value = hull;
+  hullData = null;
+  $('status').textContent = hull + ' 기록을 불러오는 중…';
+  for (const id of ['hull-lifecycle','erection-view','related-view','week-tools','erection-legend']) $(id).hidden = true;
+  const data = await loadHull(hull);
+  if (request !== hullRequest) return;
+  hullData = data;
+  if (block && hullData.planOf.has(block)) selectBlock(block);
+  else { state.block = null; writeHash(); render(); }
+}
+
+// Hull list with this week's counts (plan, confirmed, open, re-planned with an ERP reason).
+function hullOptions() {
+  const {latest, passed} = blockStates(all.records);
+  const start = mondayOf(TODAY), end = addDays(start, 6);
+  const byHull = new Map(all.hulls.map(h => [h.id, {week:0,done:0,open:0,replanned:0}]));
+  for (const p of all.plans) {
+    const s = byHull.get(hullOfBlock(p.block));
+    if (!s) continue;
+    const inWeek = day => day && day >= start && day <= end;
+    const completedThisWeek = inWeek(passed.get(p.block)?.erect_day);
+    if (inWeek(p.baseline) || inWeek(p.forecast) || completedThisWeek) {
+      s.week++;
+      if (completedThisWeek) s.done++;
+      else if (['late','forecast'].includes(statusOf(p, latest).key)) { s.open++; if (p.forecast > p.baseline && p.reason) s.replanned++; }
+    }
+  }
+  return [...byHull.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+async function start() {
+  try {
+    me = await api('me');
+    $('viewer').textContent = (me.name || me.id) + ' · ' + me.group_id;
+    await loadShared();
+  } catch (error) {
+    $('detail').replaceChildren(node('p', error.message), link('포털에서 로그인', '/'));
+    $('status').textContent = error.message;
+    return;
+  }
+  const options = hullOptions();
+  const vessel = h => all.vessels.find(v => v.hull === h);
+  $('hull').replaceChildren(...options.map(([h, s]) => {
+    const o = node('option', [h, vessel(h)?.vessel_type, all.erectionAvailable ? '이번 주 탑재 ' + s.week + '건' : null].filter(Boolean).join(' · '));
+    o.value = h;
+    return o;
+  }));
+  const linked = new URLSearchParams(location.hash.slice(1));
+  const hasWeek = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && Number.isFinite(parse(s).getTime()) && iso(parse(s)) === s;
+  if (hasWeek(linked.get('week'))) state.week = mondayOf(linked.get('week'));
+  if (Object.hasOwn(viewRoutes, linked.get('view'))) state.view = linked.get('view');
+  // Default: plan and confirmed results this week, plus a re-planned block whose reason the ERP recorded.
+  const preferred = options.find(([, s]) => s.done && s.replanned) || options.find(([, s]) => s.week && s.done && s.open) ||
+    options.find(([, s]) => s.week) || options[0];
+  const hull = options.some(([h]) => h === linked.get('hull')) ? linked.get('hull') : preferred?.[0];
+  if (!hull) { $('status').textContent = '조회할 수 있는 호선이 없습니다.'; return; }
+  $('views').addEventListener('click', e => {
+    const view = e.target.closest('button[data-view]')?.dataset.view;
+    if (!view || view === state.view) return;
+    state.view = view;
+    writeHash();
+    render();
+  });
+  $('hull').onchange = () => { state.week = mondayOf(TODAY); state.filter = 'all'; state.cause = null; selectHull($('hull').value); };
+  $('prev').onclick = () => { state.week = addDays(state.week, -7); state.filter = 'all'; writeHash(); render(); };
+  $('next').onclick = () => { state.week = addDays(state.week, 7); state.filter = 'all'; writeHash(); render(); };
+  $('this-week').onclick = () => { state.week = mondayOf(TODAY); state.filter = 'all'; writeHash(); render(); };
+  await selectHull(hull, linked.get('block'));
+  // Links that change only the hash (another hull or block, the browser's back button) are followed in place.
+  addEventListener('hashchange', () => {
+    const next = new URLSearchParams(location.hash.slice(1));
+    const h = next.get('hull'), b = next.get('block');
+    state.view = Object.hasOwn(viewRoutes, next.get('view')) ? next.get('view') : 'erection';
+    state.week = hasWeek(next.get('week')) ? mondayOf(next.get('week')) : mondayOf(TODAY);
+    if (h && h !== state.hull && options.some(([id]) => id === h)) {
+      state.filter = 'all'; state.cause = null;
+      selectHull(h, b);
+    }
+    else if (b && b !== state.block && hullData?.planOf.has(b)) selectBlock(b);
+    else { if (!b) state.block = null; render(); }
+  });
+}
+start();
+</script>
+</body>
+</html>

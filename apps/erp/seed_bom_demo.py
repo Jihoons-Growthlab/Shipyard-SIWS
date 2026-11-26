@@ -56,11 +56,11 @@ def add(db, action, **values):
 
 def ensure_master(db):
     if not exists(db, 'SELECT 1 FROM locations WHERE id=?', WAREHOUSE):
-        add(db, 'locations', id=WAREHOUSE, name='트윈 실습 자재창고', kind='창고')
+        add(db, 'locations', id=WAREHOUSE, name='트윈 자재창고', kind='창고')
     if not exists(db, 'SELECT 1 FROM suppliers WHERE id=?', SUPPLIER):
         add(db, 'suppliers', id=SUPPLIER, name='가상 의장품 공급사')
     if not exists(db, 'SELECT 1 FROM centers WHERE id=?', CENTER):
-        add(db, 'centers', id=CENTER, name='트윈 실습 PE 의장반', hours=16)
+        add(db, 'centers', id=CENTER, name='트윈 PE 의장반', hours=16)
     if not exists(db, 'SELECT 1 FROM center_locations WHERE center=?', CENTER):
         add(db, 'center_locations', center=CENTER, location=PE_YARD)
     for key, (name, unit, stock, lead) in MATERIALS.items():

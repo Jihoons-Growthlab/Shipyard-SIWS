@@ -47,7 +47,7 @@ READS = {'accounts', 'user_groups', 'group_permissions', 'audit_log', 'login_eve
 DEFAULT_GROUPS = {
     '계획': [menus.PLAN_MASTER, menus.PLAN_HULL, menus.PLAN_OUTFIT, menus.PLAN_SHORT, '자재 소요계획 (MRP)', '설계 도면',
            '형상·배치'],
-    '생산': ['작업지시·실적', '블록 조립·공수', '의장품', '블록 이동', '자재 출고'],
+    '생산': ['작업지시·실적', '블록 조립·공수', '의장관리', '블록 이동', '자재 출고'],
     '구매': ['구매·입고', '자재 출고', '강재 추적'],
     '품질': ['품질 검사'],
     '조회': [],

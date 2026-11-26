@@ -61,10 +61,10 @@ def children(db, block):
             db.execute('SELECT child_block FROM block_structure WHERE parent_block=?', (block,))]
 
 
-def erected(db, block):
+def erected(db, block, as_of=None):
     """Day of the latest passing erection record, or None."""
-    row = db.execute('''SELECT inspection, erect_day FROM erection_records WHERE block=?
-        ORDER BY recorded_at DESC, id DESC LIMIT 1''', (block,)).fetchone()
+    row = db.execute('''SELECT inspection, erect_day FROM erection_records WHERE block=? AND erect_day<=?
+        ORDER BY recorded_at DESC, id DESC LIMIT 1''', (block, as_of or '9999-12-31')).fetchone()
     return row['erect_day'] if row and row['inspection'] == '합격' else None
 
 
@@ -117,6 +117,9 @@ def write(db, action, v, api):
         same_hull(db, lookup, require, v['hull'], v['block'])
     if action == 'outfitting_events':
         lookup(db, 'outfitting_items', v['item'])
+        require(not db.execute('''SELECT 1 FROM outfit_item_links l JOIN outfit_orders o ON o.work=l.work
+                                  WHERE l.id=?''', (v['item'],)).fetchone(),
+                '연결된 의장 작업지시에서 설치·검사를 등록하세요.')
         done = list(db.execute('SELECT * FROM outfitting_events WHERE item=? ORDER BY event_day, id', (v['item'],)))
         require(len(done) < len(OUTFIT_EVENTS), '모든 단계를 마친 의장품입니다.')
         expected = OUTFIT_EVENTS[len(done)]
@@ -175,17 +178,20 @@ def blockers(db, block, plan):
     return out
 
 
-def milestone_gate(db, hull, milestone, require):
-    planned = [row['block'] for row in db.execute('''SELECT p.block FROM erection_plans p
+def milestone_gate(db, hull, milestone, as_of, require):
+    planned = [row['block'] for row in db.execute('''SELECT DISTINCT p.block FROM erection_plans p
         JOIN blocks b ON b.id=p.block WHERE b.hull=?''', (hull,))]
-    done = [block for block in planned if erected(db, block)]
+    done = [block for block in planned if erected(db, block, as_of)]
     if milestone == '기공':
         require(done, '기공 실적에는 첫 블록의 탑재 검사 합격 기록이 필요합니다.')
     if milestone == '진수':
+        require(planned, '진수 실적을 등록하려면 탑재 계획이 필요합니다.')
         require(len(done) == len(planned), f'진수 전 탑재 미완료 블록 {len(planned) - len(done)}개가 있습니다.')
     if milestone in {'시운전', '인도'}:
         open_items = db.execute('''SELECT COUNT(*) FROM outfitting_items i WHERE i.hull=? AND NOT EXISTS
-            (SELECT 1 FROM outfitting_events e WHERE e.item=i.id AND e.event='검사 완료')''', (hull,)).fetchone()[0]
+            (SELECT 1 FROM outfit_item_links l JOIN outfit_orders o ON o.work=l.work WHERE l.id=i.id) AND NOT EXISTS
+            (SELECT 1 FROM outfitting_events e WHERE e.item=i.id AND e.event='검사 완료' AND e.event_day<=?)''',
+                                (hull, as_of)).fetchone()[0]
         require(not open_items, f'검사 완료되지 않은 의장품 {open_items}건이 있습니다.')
 
 
@@ -265,6 +271,12 @@ def read(db, table):
         latest = {}
         for row in db.execute('SELECT * FROM outfitting_events ORDER BY event_day, recorded_at'):
             latest[row['item']] = row['event']
-        return [{**dict(row), 'status': latest.get(row['id'], '미입고')}
+        linked = {row['id']: row for row in db.execute('''SELECT l.id,l.work,w.work_status,o.id AS outfit_order
+            FROM outfit_item_links l JOIN outfit_works w ON w.id=l.work LEFT JOIN outfit_orders o ON o.work=w.id''')}
+        status = {'완료': '검사 완료', '진행': '설치·검사 진행', '계획': '작업지시 발행', '보류': '보류'}
+        return [{**dict(row), 'work': linked[row['id']]['work'] if row['id'] in linked else None,
+                 'outfit_order': linked[row['id']]['outfit_order'] if row['id'] in linked else None,
+                 'status': status[linked[row['id']]['work_status']]
+                 if row['id'] in linked and linked[row['id']]['outfit_order'] else latest.get(row['id'], '미입고')}
                 for row in db.execute('SELECT * FROM outfitting_items ORDER BY id')]
     return None

@@ -218,6 +218,90 @@ class ShipYardTest(unittest.TestCase):
         self.assertNotEqual(failed, passed)
         self.assertEqual(results[failed]['inspection'], '불합격')
         self.assertEqual(results[passed]['work_order'], child)
+        self.assertRegex(results[failed]['lot_no'], r'^PLOT-\d{6}$')
+        self.assertEqual(results[failed]['lot_no'], results[passed]['lot_no'])
+        self.assertEqual(results[passed]['inspection_sequence'], 2)
+        self.assertEqual(results[passed]['hull'], 'H101')
+        self.assertEqual(results[passed]['parent_order'], order)
+        self.assertEqual(results[passed]['recorded_by'], 'admin')
+
+    def test_outfit_plan_order_installation_and_reinspection(self):
+        today = date.today().isoformat()
+        work = {'hull': 'H101', 'block': 'B101', 'outfit_zone': '기관실', 'outfit_trade': '배관',
+                'work_phase': '선행 의장', 'work_area': 'SHOP', 'start_day': today, 'end_day': today,
+                'planned_mh': 12, 'crew': 2, 'progress_pct': 0, 'work_status': '계획'}
+        plan = self.api('outfit_works', work)['id']
+        stage = self.api('block_stages', {'block':'B101', 'assembly_stage':'대조립', 'center':'C1',
+                         'planned_mh':10, 'baseline':today, 'forecast':today})['id']
+        self.api('outfit_conditions', {'id':plan, 'block_stage':stage, 'erection_required':'필수'})
+        self.api('outfit_conditions', {'id':plan, 'block_stage':stage, 'erection_required':'필수'})
+        self.api('outfit_materials', {'work':plan, 'requirement':'REQ1'})
+        self.api('outfit_materials', {'work':plan, 'requirement':'REQ1'}, 400)
+        self.assertIn('탑재 전 필수 의장 검사 미완료', self.ready('B101')['blockers'])
+        issue = {'work': plan, 'system_code': 'CW-01', 'planned_qty': 10, 'outfit_unit': 'm',
+                 'issued_day': today, 'instruction': '냉각수 배관 설치'}
+        order = self.api('outfit_orders', issue)['id']
+        self.api('outfit_orders', issue, 400)
+        self.api('outfit_works', {**work, 'id': plan, 'progress_pct': 100, 'work_status': '완료'}, 400)
+        install = {'outfit_order': order, 'work_day': today, 'installed_qty': 6, 'manhours': 5}
+        self.assertIn('조립 단계 미완료', self.api('outfit_installations', install, 400)['error'])
+        self.api('work_logs', {'block_stage':stage, 'work_day':today, 'manhours':10, 'progress_pct':100})
+        self.assertIn('자재 미출고', self.api('outfit_installations', install, 400)['error'])
+        week = self.api('plans')[0]['start']
+        self.api('orders', {'id':'OUT-MAT-WO', 'activity':'A2', 'cadence':'주간', 'day':week, 'instruction':'출고 지시'})
+        request = self.api('purchase_requests', {'requirement':'REQ1','qty':5})['id']
+        purchase = self.api('purchase_orders', {'request':request,'supplier':'SUP-STEEL','promised_day':today})['id']
+        receipt = self.api('goods_receipts', {'purchase_order':purchase,'day':today,'qty':5,
+                           'inspection':'합격','location':'STORE'})['id']
+        issue_id = self.api('issues', {'requirement':'REQ1','work_order':'OUT-MAT-WO','qty':25,
+                            'day':today,'source':'STORE'})['id']
+        material, = self.api('outfit_materials')
+        self.assertEqual((material['received_qty'],material['issued_qty'],material['remaining_qty']), (5,25,0))
+        self.assertEqual(material['receipt_documents'][0]['id'], receipt)
+        self.assertEqual(material['issue_documents'][0]['id'], issue_id)
+        first = self.api('outfit_installations', install)['id']
+        self.api('outfit_installations', install, 400)
+        inspection = {'outfit_installation': first, 'inspect_day': today, 'inspector': '검사 담당',
+                      'inspection': '불합격', 'evidence': '치수 확인'}
+        self.api('outfit_inspections', inspection)
+        pending = self.api('outfit_orders')[0]
+        self.assertEqual((pending['installed_qty'], pending['accepted_qty'], pending['progress_pct']), (6, 0, 0))
+        self.api('outfit_inspections', {**inspection, 'inspection': '합격', 'evidence': '교정 후 재검사'})
+        self.assertEqual(self.api('outfit_orders')[0]['progress_pct'], 60)
+        second = self.api('outfit_installations', {**install, 'installed_qty': 4})['id']
+        self.api('outfit_inspections', {**inspection, 'outfit_installation': second, 'inspection': '합격'})
+        finished = self.api('outfit_orders?hull=H101')['rows'][0]
+        self.assertEqual((finished['block'], finished['system_code'], finished['work_status']), ('B101', 'CW-01', '완료'))
+        self.assertEqual((finished['actual_mh'], finished['accepted_qty'], finished['progress_pct']), (10, 10, 100))
+        self.assertNotIn('탑재 전 필수 의장 검사 미완료', self.ready('B101')['blockers'])
+        self.assertEqual(len(self.api('outfit_inspections')), 3)
+
+    def test_result_details_and_existing_record_backfill(self):
+        actual = (date.today() - timedelta(days=1)).isoformat()
+        work = {'id': 'W1', 'actual': actual, 'result': '도면 검토', 'inspection': '합격', 'reason': '검토 일정 조정',
+                'actual_start_at': actual + 'T08:00', 'actual_end_at': actual + 'T09:00',
+                'work_area': 'SHOP', 'equipment': 'CR1', 'shift_code': '주간',
+                'output_qty': 2.5, 'labor_mh': 1.25, 'inspection_evidence': '검토 기록'}
+        self.api('results', work, 400)  # 수량 단위 누락
+        # Seeded daily order has a later actual date so the parent cannot close on yesterday.
+        with closing(app.connect()) as db, db:
+            db.execute("UPDATE orders SET actual=? WHERE id='D1'", (actual,))
+        result = self.api('results', {**work, 'output_unit': 'm²'})['id']
+        row = next(row for row in self.api('production_results') if row['id'] == result)
+        self.assertEqual(row['actual_start_at'], actual + 'T08:00:00+09:00')
+        self.assertEqual((row['work_area'], row['equipment'], row['output_qty'], row['labor_mh']),
+                         ('SHOP', 'CR1', 2.5, 1.25))
+        self.assertEqual(row['issued_lot_status'], '출고 기록 없음')
+        with closing(app.connect()) as db, db:
+            db.execute("UPDATE orders SET actual=?,result='기존 작업',inspection='합격' WHERE id='W1'", (actual,))
+            db.execute('DELETE FROM production_result_details WHERE result_id=?', (result,))
+            db.execute('DELETE FROM production_results WHERE id=?', (result,))
+            app.results.upgrade(db, app.insert)
+            app.results.upgrade(db, app.insert)
+            legacy, = [row for row in app.results.read(db) if row['work_order'] == 'W1']
+            self.assertEqual(legacy['lot_no'], row['lot_no'])
+            self.assertIsNone(legacy['recorded_at'])
+            self.assertIsNone(legacy['labor_mh'])
 
     def test_shipbuilding_dates_relationships_and_readiness(self):
         self.api('hull_milestones', {'hull':'H101','milestone':'진수','baseline':'2027-01-04',
@@ -327,6 +411,19 @@ class ShipYardTest(unittest.TestCase):
         self.api('quay_shifts', {**shift, 'actual_day': '2099-01-01'}, 400)
         self.api('quay_shifts', shift)
         self.assertIn('SEA-TRIAL', [row['id'] for row in self.api('shift_points')])
+        points = {row['id']: row for row in self.api('shift_points')}
+        self.assertEqual(points['Q1-A']['quay'], 'QUAY')
+        self.assertFalse(points['Q1-A']['position_known'])
+        self.assertIsNone(points['Q1-A']['position'])
+        position = {'id': 'Q1-A', 'x': -12.5, 'y': 0, 'z': 3, 'heading_deg': 90.5}
+        self.api('shift_point_positions', {**position, 'id': 'NOWHERE'}, 400)
+        self.api('shift_point_positions', {**position, 'heading_deg': 360}, 400)
+        self.api('shift_point_positions', {**position, 'x': 'NaN'}, 400)
+        self.api('shift_point_positions', position)
+        self.api('shift_point_positions', {**position, 'x': 0})
+        points = {row['id']: row for row in self.api('shift_points')}
+        self.assertTrue(points['Q1-A']['position_known'])
+        self.assertEqual(points['Q1-A']['position'], {'x': 0, 'y': 0, 'z': 3, 'heading_deg': 90.5})
 
         work = {'hull': 'H101', 'block': '', 'outfit_zone': '기관실', 'outfit_trade': '배관', 'work_phase': '안벽 의장',
                 'work_area': 'QUAY', 'start_day': '2020-01-01', 'end_day': '2020-01-31', 'planned_mh': 1000, 'crew': 6,
@@ -338,7 +435,8 @@ class ShipYardTest(unittest.TestCase):
         self.api('outfit_links', {'work': lagging, 'predecessor_work': pipe})
         self.api('outfit_links', {'work': pipe, 'predecessor_work': lagging}, 400)  # cycle
         rows = {row['id']: row for row in self.api('outfit_works')}
-        self.assertEqual(rows[lagging]['schedule_check'], '종료일 경과')
+        self.assertIn('종료일 경과', rows[lagging]['schedule_check'])
+        self.assertIn('작업 기간의 선석 배정 확인', rows[lagging]['schedule_check'])
         self.assertEqual(rows[lagging]['earned_mh'], 400)
         progress = self.api('outfit_progress')[0]
         self.assertEqual((progress['planned_mh'], progress['earned_mh'], progress['progress_status']), (2000, 1400, '지연'))
@@ -363,6 +461,57 @@ class ShipYardTest(unittest.TestCase):
         overview = next(r for r in self.api('hull_overview') if r['hull'] == 'H101')
         self.assertIn('도크 예약 없음', overview['allocation_check'])
         self.assertEqual(overview['risk'], '위험')
+
+    def test_hull_overview_reports_overdue_delivery_until_an_actual_is_recorded(self):
+        earlier = (date.today() - timedelta(days=1)).isoformat()
+        self.api('hull_milestones', {'hull': 'H101', 'milestone': '인도',
+                                    'baseline': earlier, 'forecast': earlier, 'reason': ''})
+        def overview():
+            return next(row for row in self.api('hull_overview') if row['hull'] == 'H101')
+        self.assertIn('예정일 경과', overview()['lifecycle_status'])
+        self.assertIsNone(overview()['delivery_actual'])
+        milestone = next(row for row in self.api('hull_milestones') if row['milestone'] == '인도')
+        self.api('milestone_update', {'id': milestone['id'], 'forecast': earlier,
+                                     'actual': earlier, 'reason': '인도 확인'})
+        self.assertEqual(overview()['lifecycle_status'], '인도 완료')
+        self.assertEqual(overview()['delivery_actual'], earlier)
+
+    def test_crane_rails(self):
+        self.api('equipment', {'id': 'JB1', 'name': '1도크 지브 크레인 1호'})
+        rail = {'equipment': 'JB1', 'rail_x0': 0, 'rail_y0': -40, 'rail_x1': 150, 'rail_y1': -40, 'gauge_m': 10,
+                'jib_heading_deg': 90}
+        self.api('crane_rails', rail, 400)   # no lifting rating yet
+        self.api('equipment_specs', {'equipment': 'JB1', 'equipment_type': '트랜스포터', 'capacity_t': 50, 'station': ''})
+        self.api('crane_rails', rail, 400)   # a transporter does not run on rails
+        self.api('equipment_specs', {'equipment': 'JB1', 'equipment_type': '지브 크레인', 'capacity_t': 50, 'station': 'DOCK'})
+        self.api('crane_rails', {**rail, 'rail_x1': 5}, 400)
+        self.api('crane_rails', {**rail, 'gauge_m': 1}, 400)
+        self.api('crane_rails', {**rail, 'jib_heading_deg': 360}, 400)
+        self.api('crane_rails', {**rail, 'jib_heading_deg': 0})
+        self.api('crane_rails', rail)   # upsert by equipment
+        rows = self.api('crane_rails')
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['equipment_type'], rows[0]['capacity_t'], rows[0]['station'], rows[0]['jib_heading_deg']),
+                         ('지브 크레인', 50.0, 'DOCK', 90.0))
+
+    def test_goliath_rails_serve_every_dock_between_them(self):
+        import resources
+        with closing(app.connect()) as db, db:
+            for key in ('DOCK2', 'DOCK3'):
+                db.execute('INSERT INTO locations (id, name, kind) VALUES (?, ?, ?)', (key, key, '도크'))
+            for key, x in (('DOCK', 0), ('DOCK2', 65), ('DOCK3', 130)):
+                db.execute('''INSERT INTO location_geometry (location, x, y, z, heading_deg, size_x_m, size_y_m, size_z_m)
+                    VALUES (?, ?, 0, 0, 90, 180, 45, 0)''', (key, x))
+            db.execute("INSERT INTO equipment (id, name) VALUES ('GC2', '골리앗')")
+            db.execute('''INSERT INTO equipment_specs (equipment, equipment_type, capacity_t, station)
+                VALUES ('GC2', '골리앗 크레인', 600, 'DOCK')''')
+            # Rails along the docks (heading 90), 120 m apart, straddling DOCK and DOCK2 but not DOCK3.
+            db.execute('''INSERT INTO crane_rails (equipment, rail_x0, rail_y0, rail_x1, rail_y1, gauge_m, jib_heading_deg)
+                VALUES ('GC2', 32.5, -150, 32.5, 100, 120, 90)''')
+            by_station = resources.cranes(db)
+        self.assertIn((600.0, 'GC2'), by_station['DOCK'])
+        self.assertIn((600.0, 'GC2'), by_station['DOCK2'])
+        self.assertNotIn((600.0, 'GC2'), by_station.get('DOCK3', []))
 
     def test_hull_and_block_geometry(self):
         self.api('hull_geometry', {'hull': 'H101', 'depth_m': 26.5, 'draft_m': 30, 'frame_spacing_m': 0.8}, 400)
@@ -507,6 +656,11 @@ class ShipYardTest(unittest.TestCase):
         self.assertEqual(sorted((row['heat_no'], row['qty']) for row in trace if row['block'] == 'B101'),
                          [('H-1', 3), ('H-2', 2), ('로트 미배정', 20)])
         self.assertEqual({row['supplier'] for row in trace if row['lot']}, {'S1'})
+        result = self.api('results', {'id': 'W2', 'actual': today, 'result': '치수 보정 필요',
+                                    'inspection': '불합격', 'reason': '검사 보류'})['id']
+        row = next(row for row in self.api('production_results') if row['id'] == result)
+        self.assertEqual(row['issued_lot_status'], '일부 배정')
+        self.assertEqual({(lot['heat_no'], lot['lot_qty']) for lot in row['issued_lots']}, {('H-1', 3), ('H-2', 2)})
         remnant = {'issue': 'I1', 'lot': lot1, 'return_type': '잔재', 'qty': 1, 'return_day': today, 'warehouse': 'STORE'}
         self.api('material_returns', {**remnant, 'warehouse': ''}, 400)
         self.api('material_returns', remnant)

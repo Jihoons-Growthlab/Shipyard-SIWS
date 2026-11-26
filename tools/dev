@@ -2,14 +2,62 @@
 set -eu
 root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$root"
+if [ "${2:-}" = tailnet ]; then
+  case "${1:-}" in erp|portal) ;; *) echo 'tailnet은 erp와 portal에만 쓸 수 있습니다.' >&2; exit 2 ;; esac
+  command -v tailscale >/dev/null 2>&1 || { echo 'tailscale CLI를 찾을 수 없습니다.' >&2; exit 1; }
+  ts_ip="$(tailscale ip -4 | head -n 1)"
+  [ -n "$ts_ip" ] || { echo 'Tailscale IPv4 주소를 찾을 수 없습니다. Tailscale 연결을 확인하세요.' >&2; exit 1; }
+  ts_dns="$(tailscale status --self --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null || true)"
+  export SHIPYARD_BIND_HOSTS="127.0.0.1,$ts_ip"
+  export SHIPYARD_ALLOWED_HOSTS="${ts_dns}${ts_dns:+,}${ts_dns%%.*}"
+fi
 case "${1:-}" in
   db-up) cd apps/erp; exec docker compose -p shipyard up -d --wait ;;
   db-stop) cd apps/erp; exec docker compose -p shipyard stop ;;
   db-status) cd apps/erp; exec docker compose -p shipyard ps ;;
   erp) exec apps/erp/shipyard-postgres app.py --port 8001 ;;
-  portal) exec python3 apps/portal/portal.py ;;
+  assistant)
+    exec apps/assistant/.venv/bin/python -m uvicorn server:app --app-dir apps/assistant --host 127.0.0.1 --port "${SIWS_ASSISTANT_PORT:-8787}" --no-access-log ;;
+  equipment-db-up) cd apps/portal; exec docker compose -p siws-equipment up -d --wait ;;
+  portal)
+    if [ -f apps/portal/.env ]; then
+      set -a
+      . ./apps/portal/.env
+      set +a
+    fi
+    exec python3 apps/portal/portal.py ;;
   twin-test) exec apps/twin/tools/test.sh "${2:-EditMode}" ;;
   twin-build) exec apps/twin/tools/build.sh ;;
-  twin-run) exec apps/twin/Builds/ShipyardTwin.app/Contents/MacOS/ShipyardTwin ;;
-  *) printf '%s\n' 'Usage: tools/dev {db-up|db-stop|db-status|erp|portal|twin-test [EditMode|PlayMode]|twin-build|twin-run}' >&2; exit 2 ;;
+  twin-run)
+    if [ "${2:-}" = offline ]; then
+      export SHIPYARD_API_URL=
+    else
+      export SHIPYARD_API_URL="${SHIPYARD_API_URL:-http://127.0.0.1:8001}"
+      if [ -z "${SHIPYARD_API_TOKEN:-}" ] && [ -z "${SHIPYARD_API_USER:-}" ] && [ -t 0 ]; then
+        SHIPYARD_API_TOKEN=$(PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=apps/twin/pipeline python3 -c '
+import argparse, getpass, sys
+import erp_client
+base = erp_client.base_url(argparse.ArgumentParser())
+try:
+    meta = erp_client.request(base, "meta")
+except (OSError, RuntimeError):
+    print("ERP에 연결하지 못했습니다. 스냅샷으로 시작합니다.", file=sys.stderr)
+    sys.exit(0)
+if meta.get("login_required", True):
+    with open("/dev/tty") as tty:
+        print("ERP 아이디: ", end="", file=sys.stderr, flush=True)
+        user = tty.readline().strip()
+    try:
+        print(erp_client.request(base, "login", {
+            "id": user, "password": getpass.getpass("ERP 비밀번호: ")
+        })["token"])
+    except (OSError, RuntimeError, KeyError):
+        sys.exit("ERP 로그인 실패. 계정을 확인하거나 tools/dev twin-run offline으로 시작하세요.")
+')
+        export SHIPYARD_API_TOKEN
+      fi
+    fi
+    exec apps/twin/Builds/ShipyardTwin.app/Contents/MacOS/ShipyardTwin
+    ;;
+  *) printf '%s\n' 'Usage: tools/dev {db-up|db-stop|db-status|erp [tailnet]|assistant|portal [tailnet]|twin-test [EditMode|PlayMode]|twin-build|twin-run [offline]}' >&2; exit 2 ;;
 esac

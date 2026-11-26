@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIWS 조선 공정 가이드</title>
+<style>
+:root{color-scheme:light;--navy:#101e2d;--ink:#17242d;--muted:#4c626b;--accent:#08785c;--light:#e7f5ef;--line:#dce5e5;--paper:#fff;--bg:#f1f5f4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px/1.62 "Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;color:var(--ink)}button,a{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #137cbd;outline-offset:4px}a{color:var(--accent)}
+.top{background:var(--navy);color:#f0f8f6}.wrap{width:min(1260px,calc(100% - 64px));margin:auto}.nav{min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #ffffff23}.brand{display:flex;align-items:center;gap:10px;font-weight:750}.logo{width:32px;height:32px;border:1px solid #68d8b9;border-radius:9px;display:grid;place-items:center;color:#9aefce;font-size:13px;letter-spacing:-.03em}.jump{background:#ffffff11;color:white;text-decoration:none;padding:7px 15px;border-radius:8px;font-size:13px}.jump:hover{background:#ffffff25}.hero{padding:27px 0 34px;display:flex;justify-content:space-between;gap:26px;align-items:end}.hero h1{font-size:clamp(34px,4.6vw,61px);line-height:1.08;letter-spacing:-.055em;margin:0 0 10px}.hero p{margin:0;color:#c3d4db}.legend{display:flex;gap:11px;flex-wrap:wrap;font-size:12px;color:#e2eeef}.legend span{display:flex;align-items:center;gap:6px}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#61debc}.dot.plan{background:#eec477}
+main{padding:25px 0 50px}.workspace{display:grid;grid-template-columns:252px minmax(0,1fr);gap:18px;align-items:start}.card{background:var(--paper);border:1px solid var(--line);border-radius:17px;box-shadow:0 4px 14px #142c3510}.sidebar{padding:16px 12px 12px}.sidehead{padding:0 9px 10px;display:flex;align-items:center;justify-content:space-between}.sidehead h2,.maphead h2{font-size:16px;margin:0}.stepcount{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.steps{display:grid;gap:4px}.step{width:100%;border:1px solid transparent;background:transparent;padding:9px 8px;display:flex;gap:9px;align-items:center;text-align:left;border-radius:10px;color:var(--ink)}.step:hover{background:#f0f7f5}.step[aria-current=step]{background:var(--light);border-color:#a9ddcb;color:#075941}.step i{border-radius:8px;display:grid;place-items:center;flex:0 0 30px;height:30px;background:#edf2f2;color:#3f5660;font:700 12px/1 system-ui;font-style:normal}.step[aria-current=step] i{background:#10765e;color:white}.step strong{display:block;font-size:14px;line-height:1.2}.step small{display:block;color:#52676e;font-size:11px;margin-top:3px}.sidefoot{margin:12px 7px 3px;padding:9px 0 0;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.content{min-width:0;display:grid;gap:15px}.mapcard{overflow:hidden}.maphead{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:10px}.maphead span{font-size:12px;color:var(--muted)}.yard{position:relative;background:#173e4c;aspect-ratio:2.62/1;isolation:isolate}.yard canvas{width:100%;height:100%;display:block;position:absolute;inset:0}.pin{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;width:29px;height:29px;border-radius:50%;border:1px solid #e3f9f0;background:#142c33;color:white;padding:0;font-size:12px;font-weight:800;box-shadow:0 2px 9px #081f2bc4;z-index:1}.pin:hover,.pin[aria-pressed=true]{background:#b0ffcf;color:#10362b;border:1px solid #134233}.pin[aria-pressed=true]{outline:3px solid #88ffc777;outline-offset:3px}.mapkey{position:absolute;bottom:8px;right:10px;background:#132d36dd;color:white;padding:3px 7px;border-radius:5px;font-size:10px;pointer-events:none}
+.detail{padding:21px 22px}.topic{margin:0 0 4px;font-size:12px;color:var(--accent);font-weight:800}.detail h2{margin:0;font-size:clamp(24px,3vw,36px);letter-spacing:-.045em;line-height:1.2}#topic-title:focus{outline:none}.detail{scroll-margin-top:10px}.description{margin:7px 0 17px;color:var(--muted)}.detailgrid{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:10px}.pane{background:#f4f7f7;border:1px solid #e7ecec;border-radius:11px;padding:12px}.pane.gate{background:#e9f6ee;border-color:#c2e6d6}.pane h3{font-size:13px;margin:0 0 5px}.pane ul,.pane ol{margin:0;padding-left:18px;font-size:13px}.pane li+li{margin-top:5px}.route{margin-top:11px;border-top:1px solid #d5e3df;padding-top:8px;display:grid;gap:4px}.route a{font-size:12px;text-underline-offset:3px;overflow-wrap:anywhere}.trap{margin:12px 0 0;padding:9px 11px;background:#fff5df;border-radius:8px;color:#634318;font-size:13px}.actions{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:13px}.btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid #bed1cb;background:#fff;border-radius:8px;padding:7px 12px;color:var(--ink);text-decoration:none;font-size:13px;font-weight:750}.btn:hover{background:#edf7f3}.btn.next{background:#116f59;color:white;border-color:#116f59}.btn.next:hover{background:#0a5946}.btn:disabled{opacity:.45;cursor:default}.check{font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted)}.check input{width:17px;height:17px;accent-color:var(--accent)}
+.practice{margin-top:18px;padding:20px 23px;scroll-margin-top:12px}.practice h2{font-size:23px;margin:0;letter-spacing:-.035em}.practice p{margin:4px 0 12px;color:var(--muted)}.cases{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 12px}.cases button[aria-pressed=true]{background:var(--light);border-color:#77bea9;color:#075941}.casebox{border-left:3px solid #1f9676;background:#f2f7f6;border-radius:0 9px 9px 0;padding:12px 14px}.casebox h3{margin:0;font-size:16px}.answers{display:flex;flex-wrap:wrap;gap:8px}.casebox #feedback{margin:10px 0 0;min-height:24px;font-size:13px}.casebox button[aria-pressed=true]{border-color:#0a6f59;background:#e6f5ee}.gloss{margin-top:14px;font-size:13px}.gloss summary{cursor:pointer;font-weight:750}.gloss dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px}.gloss dd{margin:0;color:var(--muted)}.foot{font-size:12px;color:var(--muted);margin:14px 0 0}
+@media(max-width:880px){.wrap{width:calc(100% - 28px)}.workspace{grid-template-columns:190px minmax(0,1fr);gap:10px}.detailgrid{grid-template-columns:1fr 1fr}.pane.gate{grid-column:1/-1}}
+@media(max-width:630px){.hero{display:block;padding:20px 0}.legend{margin-top:10px}.workspace{display:flex;flex-direction:column;width:100%}.sidebar,.content{width:100%}.sidebar{padding:9px}.steps{grid-template-columns:1fr 1fr}.step{padding:5px}.step i{flex-basis:24px;height:24px}.step strong{font-size:12px}.step small,.sidefoot{display:none}.sidehead{padding:0 5px 7px}.yard{aspect-ratio:1.85/1}.pin{width:24px;height:24px;font-size:11px}.detail{padding:14px}.detailgrid{grid-template-columns:1fr}.pane.gate{grid-column:auto}.actions{flex-wrap:wrap}.check{order:3;flex-basis:100%}.practice{padding:14px}.maphead{padding:9px 10px}.maphead span{font-size:10px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="nav"><div class="brand"><span class="logo" aria-hidden="true">SI</span> SIWS 조선 공정 가이드</div><a class="jump" href="#practice">상황 연습</a></div>
+    <div class="hero"><div><h1>한 척의 배가 완성되기까지</h1><p>야드 지도에서 작업을 고르고, 필요한 준비와 ERP 기록을 하나씩 따라가 보세요.</p></div><div class="legend"><span><i class="dot plan"></i>계획 · 언제 어디서 할지</span><span><i class="dot"></i>실적 · 무엇을 확인했는지</span></div></div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="workspace">
+    <aside class="card sidebar"><div class="sidehead"><h2>공정 순서</h2><span class="stepcount" id="counter"></span></div><nav class="steps" id="steps" aria-label="조선 공정"></nav><p class="sidefoot">자재 준비와 블록별 선행 의장은 여러 공정에서 병행할 수 있습니다.</p></aside>
+    <div class="content">
+      <section class="card mapcard" aria-labelledby="map-title"><div class="maphead"><h2 id="map-title">조선소 공정 지도</h2><span>번호를 누르면 해당 공정으로 이동합니다</span></div><div class="yard" id="yard"><canvas id="map" role="img" aria-label="설계 사무실, 자재 창고, 블록 공장, 건조 도크, 의장 안벽, 시험 해역을 보여주는 조선소 개념도"></canvas><span class="mapkey">학습용 개념도</span></div></section>
+      <article class="card detail" aria-labelledby="topic-title"><p class="topic" id="topic-index"></p><h2 id="topic-title" tabindex="-1"></h2><p class="description" id="description"></p>
+        <div class="detailgrid">
+          <section class="pane"><h3>필요한 자료</h3><ul id="inputs"></ul></section>
+          <section class="pane"><h3>ERP에서 할 일</h3><ol id="tasks"></ol><div class="route" id="routes"></div></section>
+          <section class="pane gate"><h3>다음 단계로 가려면</h3><ul id="gates"></ul></section>
+        </div>
+        <p class="trap" id="trap"></p>
+        <div class="actions"><button class="btn" id="prev" type="button">← 이전 공정</button><label class="check"><input type="checkbox" id="checked"> 이 단계 이해했어요</label><button class="btn next" id="next" type="button">다음 공정 →</button></div>
+      </article>
+    </div>
+  </div>
+  <section class="card practice" id="practice"><h2>이럴 땐 ERP에서 뭘 할까?</h2><p>상황을 고르고 다음에 할 일을 찾아보세요.</p><div class="cases" id="cases" aria-label="상황 선택"></div><div class="casebox"><h3 id="question"></h3><p id="context"></p><div class="answers" id="answers"></div><p id="feedback" role="status"></p></div>
+    <details class="gloss"><summary>처음 보는 용어</summary><dl><dt>호선</dt><dd>건조 중인 배 한 척을 식별하는 번호예요.</dd><dt>블록</dt><dd>선체를 여러 조각으로 나눠 만드는 단위예요.</dd><dt>탑재</dt><dd>블록을 인양해 도크에서 선체에 맞춰 붙이는 작업이에요.</dd><dt>의장</dt><dd>배관·전기·기계 등 배가 작동하는 데 필요한 설비를 설치하는 작업이에요.</dd><dt>도크 / 선석</dt><dd>도크는 선체를 건조하는 공간이고, 선석은 안벽에 배를 댈 자리예요.</dd><dt>펀치</dt><dd>검사나 시운전에서 발견한 보완 항목이에요.</dd></dl></details>
+  </section>
+  <p class="foot">SIWS 메뉴 기준 학습 자료입니다. ERP 바로가기는 이 가이드를 연 포털에 연결되며 조회·등록은 계정 권한을 따릅니다.</p>
+</main>
+<script>
+const stages = [
+ {title:'호선과 일정 잡기',where:'설계 사무실',point:[111,159],desc:'어떤 배를 언제 만들고 인도할지 먼저 정합니다. 호선 번호는 도면, 블록, 자재, 작업지시를 이어 주는 공통 번호입니다.',inputs:['호선 번호와 선종, 주요 치수','착공·기공·진수·시운전·인도 목표일','최신 도면과 도면 개정 번호'],tasks:['기준정보에 호선과 선박 제원을 등록합니다.','호선 주요 일정에 기준일과 예상일을 입력합니다.','도크와 선석 배정 기간을 잡고 변경 사유를 기록합니다.'],gates:['호선 번호와 일정 기준이 관련 부서에서 일치해야 합니다.','도크·선석 기간은 다른 호선 배정과 겹치는지 확인합니다.'],trap:'예정일은 작업 기준입니다. 실제 발생한 날짜는 해당 실적 칸에 입력합니다.',routes:[['대일정 › 호선 주요 일정','hull_milestones'],['기준정보 › 호선','hulls']]},
+ {title:'자재 준비와 구매',where:'자재 창고',point:[270,99],desc:'필요한 물량을 계산하고, 부족한 자재를 구매해 검수한 뒤 필요한 작업에 내줍니다. 선행 의장품과 안벽 의장품도 각 작업일에 맞춰 준비합니다.',inputs:['설계 BOM과 제조 BOM 또는 공정별 소요 수량','품목·단위·필요일, 가용 재고, 납기','발주서와 입고 검수 증빙'],tasks:['공정별 자재 소요와 부족량을 확인합니다.','구매요청 → 발주 → 입고·검수 순으로 문서를 연결합니다.','같은 공정의 주간 작업지시에 출고를 기록합니다. 강재는 필요한 로트도 연결합니다.'],gates:['검수 합격과 실제 출고를 각각 확인합니다.','작업에 연결된 자재의 출고가 부족하면 설치 실적이 차단됩니다.'],trap:'구매요청, 발주, 입고, 출고는 다른 상태입니다. 펌프가 창고에 도착했더라도 작업에 내준 기록이 필요합니다.',routes:[['자재 소요계획 › 공정 자재 소요','requirements'],['구매·입고 › 입고·검수','goods_receipts'],['자재 출고 › 자재 출고','issues']]},
+ {title:'블록 제작·선행 의장',where:'블록 공장',point:[398,190],desc:'강재를 가공·조립해 블록을 만듭니다. 배 전체를 합치기 전에 가능한 배관·케이블 지지대 등은 블록에서 먼저 설치합니다.',inputs:['블록 번호와 최신 출도 도면','조립 단계, 배정 작업장, 작업지시','강재 출고 기록 및 선행 의장품'],tasks:['작업지시와 조립 단계별 공수·실적을 등록합니다.','선행 의장 패키지를 해당 블록에 연결하고 설치·검사를 기록합니다.','완성 블록의 적치 계획과 실제 이동을 확인합니다.'],gates:['필요 조립과 선행 의장 검사가 끝나야 합니다.','블록 준비 현황에서 도면, 검사, 선행 작업 등 미결 항목을 확인합니다.'],trap:'조립 진척률과 검사 합격은 따로 봅니다. 블록을 옮겼다면 이동 확정 기록도 남깁니다.',routes:[['블록 조립·공수 › 조립 단계','block_stages'],['의장관리 › 작업 패키지','outfit_works'],['중일정 · 선체 › 블록 준비 현황','block_readiness']]},
+ {title:'도크 블록 탑재',where:'건조 도크',point:[512,329],desc:'순서에 맞춰 블록을 인양하고 도크에서 선체로 조립합니다. 탑재 재생은 예정된 작업 순서를 보여 주고, 탑재 검사는 현장 결과를 남깁니다.',inputs:['탑재 순서와 선행 블록, 적치 위치','도크 예약, 크레인·운반 장비 배정','탑재 검사 결과와 근거'],tasks:['탑재 계획과 선후행, 장비·도크 배정을 확인합니다.','준비가 확인된 블록을 순서대로 투입합니다.','탑재 완료 후 블록별 검사 합격·불합격과 실적일을 등록합니다.'],gates:['진수 전에는 탑재 계획 대상의 검사 합격이 필요합니다.','불합격이나 기록 누락이 있으면 검사 이력을 확인합니다.'],trap:'시뮬레이션에서 모든 블록이 자리에 있어도, 합격 실적은 탑재 검사 기록으로 확인합니다.',routes:[['중일정 · 선체 › 탑재 계획','erection_plans'],['블록 조립·공수 › 탑재 검사 실적','erection_records']]},
+ {title:'진수·안벽 접안',where:'도크 게이트',point:[649,300],desc:'선체를 물에 띄운 뒤 의장 작업을 할 안벽으로 옮깁니다. 진수한 날과 선석에 접안한 기록을 각각 남깁니다.',inputs:['탑재 검사 합격과 진수 전 점검','선석 배정과 이동 계획, 도착지','실제 진수일 및 접안 확인'],tasks:['호선 주요 일정에 실제 진수일을 입력합니다.','안벽 이동 계획·실적에 출발 도크와 도착 선석, 실제 이동일을 기록합니다.','다른 안벽으로 이동했다면 이어지는 이동 실적도 기록합니다.'],gates:['안벽 의장 착수에는 진수와 작업 안벽 접안 실적이 필요합니다.','선석 예약 기간은 계획으로 확인합니다.'],trap:'도크 예약 종료일과 선석 배정일만으로는 진수·접안 실적이 생기지 않습니다.',routes:[['대일정 › 호선 주요 일정','hull_milestones'],['대일정 › 선석 배정','berth_assignments'],['중일정 · 의장·안벽 › 안벽 이동 계획·실적','quay_shifts']]},
+ {title:'안벽 의장·출항 준비',where:'J 안벽',point:[779,212],desc:'안벽에서 펌프와 배관·계기처럼 남은 설비를 설치하고 검사합니다. 작업 패키지는 위치와 설비 계통을 묶어 주는 작업 단위입니다.',inputs:['호선·구역·계통·안벽이 지정된 작업 패키지','작업지시와 연결 자재의 출고 기록','진수·접안 실적과 검사 기준'],tasks:['의장관리에서 작업 패키지와 선행 작업을 확인하고 작업지시를 발행합니다.','설치 수량·공수·작업일을 등록합니다.','검사 결과를 등록하고 불합격이면 보완 후 재검사합니다.'],gates:['필수 의장품·발행된 작업의 검사 합격량과 출항 준비를 확인합니다.','연결 자재 미출고, 선행 미완료, 접안 실적 미등록을 먼저 처리합니다.'],trap:'설치량과 검사 합격량을 따로 봅니다. 펌프 1세트를 달았더라도 검사 대기라면 완료가 아닙니다.',routes:[['의장관리 › 작업지시','outfit_orders'],['의장관리 › 설치 실적','outfit_installations'],['의장관리 › 검사·재검사','outfit_inspections']]},
+ {title:'시운전과 귀항',where:'시운전 해역',point:[916,308],desc:'배를 운항해 설비와 성능을 확인합니다. 이상이 있으면 보완 목록에 남기고, 안벽으로 돌아온 일자를 기록합니다.',inputs:['의장 시험 결과와 출항 전 검사','시험 항목과 미결 펀치 목록','출항·귀항 계획과 실제 이동일'],tasks:['시운전 실적일과 해역으로의 출항 이동 실적을 기록합니다.','시험에서 확인한 보완 항목을 펀치리스트 등에 등록합니다.','귀항 시 해역 → 선석 이동 실적을 남깁니다.'],gates:['출항 전 의장 검사와 해당 품질 조건을 확인합니다.','귀항 후 작업을 시작하려면 귀항과 작업 안벽 접안 실적이 있어야 합니다.'],trap:'시운전 기록과 귀항 기록은 각각 필요합니다. 예정보다 늦어지면 후속 선석과 작업 일정도 확인합니다.',routes:[['품질 검사 › 펀치리스트','punch_items'],['중일정 · 의장·안벽 › 안벽 이동 계획·실적','quay_shifts']]},
+ {title:'보완·재시험·인도',where:'인도 선석',point:[839,128],desc:'귀항 후 시운전 지적사항을 보완하고 재시험합니다. 필요한 검사와 미결 항목을 닫은 뒤 인도를 기록합니다.',inputs:['귀항·접안 실적과 보완 작업지시','재시험 및 검사 합격 증빙','미결 NCR·펀치·입회 검사 확인'],tasks:['귀항 후 보완·인도 준비 작업의 설치·검사를 기록합니다.','판정 근거를 남기고 필요한 펀치와 부적합을 종결합니다.','호선 주요 일정에 인도 실적을 등록하고 인도 출항 이동을 기록합니다.'],gates:['인도 전 해당 의장 작업 합격과 품질 미결 여부를 확인합니다.','인도 완료 표시는 실제 인도일을 기준으로 합니다.'],trap:'인도 예정일이 지나고 실적이 없으면 예정일 경과 상태입니다.',routes:[['의장관리 › 작업 패키지','outfit_works'],['품질 검사 › 부적합(NCR)','ncrs'],['대일정 › 호선 주요 일정','hull_milestones']]}
+];
+const scenarios = [
+ {label:'70/71개 탑재 합격',title:'트윈에서는 탑재가 끝났는데 진수 실적을 넣어도 될까요?',info:'SN2052 학습 사례입니다. 블록 71개 중 70개만 검사 합격했고, 213C3의 합격 기록이 없습니다.',options:['진수 실적을 먼저 등록한다','213C3 탑재 검사 기록을 확인한다','J 안벽 예약을 완료 처리한다'],correct:1,answer:'탑재 검사 실적에서 213C3를 조회하세요. 검사가 끝났다면 확인된 날짜와 근거를 등록하고, 불합격이면 보완·재검사 후 진수 조건을 다시 확인합니다.',wrong:'진수 실적 등록 전에 계획 대상 블록의 검사 합격 기록을 확인해야 합니다.'},
+ {label:'펌프는 입고됐는데 설치가 막힘',title:'보조펌프가 창고에 도착했습니다. 다음에 확인할 것은?',info:'발주와 검수 합격 기록은 있고, J 안벽 작업에 연결된 자재 출고 기록이 비어 있다고 가정합니다.',options:['구매요청을 다시 만든다','설치 검사부터 등록한다','같은 공정의 주간 지시로 자재 출고를 확인한다'],correct:2,answer:'자재 출고에서 해당 소요와 같은 공정의 주간 작업지시를 확인하세요. 실제 출고를 등록하고, 작업 안벽 접안과 선행 작업 조건을 충족한 뒤 설치 실적을 입력합니다.',wrong:'입고와 출고는 별도 기록입니다. 설치에 쓰일 자재가 해당 작업으로 출고됐는지 먼저 보세요.'},
+ {label:'귀항했는데 인도가 막힘',title:'시운전을 마치고 복귀했는데 인도 실적을 등록할 수 없습니다.',info:'귀항 후 보완 작업이 진행 중이고 펀치 A 항목이 남은 상황입니다.',options:['보완·재시험 합격과 미결 펀치를 확인한다','선석 예약 종료를 기다린다','인도 예정일을 실적일에 복사한다'],correct:0,answer:'귀항 이동 실적과 보완 작업의 합격을 확인하고, 해당 펀치와 품질 미결 항목을 증빙으로 종결하세요. 그다음 실제 인도 여부와 날짜를 확인합니다.',wrong:'선석 예약과 예정일은 계획입니다. 귀항 뒤 필요한 보완·검사를 완료하고 품질 미결을 확인해야 합니다.'}
+];
+const $ = id => document.getElementById(id);
+const make = (tag,text) => Object.assign(document.createElement(tag),{textContent:text});
+const steps = [], pins = [], cases = [];
+const visited = new Set();
+let current = 0;
+stages.forEach((stage,i)=>{
+  const button=make('button','');button.type='button';button.className='step';
+  const label=make('span','');label.append(make('strong',stage.title),make('small',stage.where));
+  button.append(make('i',String(i+1).padStart(2,'0')),label);
+  button.addEventListener('click',()=>select(i,matchMedia('(max-width:630px)').matches));$('steps').append(button);steps.push(button);
+  const pin=make('button',i+1);pin.type='button';pin.className='pin';pin.setAttribute('aria-label',stage.title);
+  pin.style.left=stage.point[0]/10+'%';pin.style.top=stage.point[1]/4+'%';
+  pin.addEventListener('click',()=>select(i,matchMedia('(max-width:630px)').matches));$('yard').append(pin);pins.push(pin);
+});
+function select(i,focus=false){
+  if(i<0||i>=stages.length)return;
+  current=i;
+  const stage=stages[i];
+  steps.forEach((button,j)=>j===i?button.setAttribute('aria-current','step'):button.removeAttribute('aria-current'));
+  pins.forEach((pin,j)=>pin.setAttribute('aria-pressed',String(i===j)));
+  $('counter').textContent=String(i+1).padStart(2,'0')+' / '+String(stages.length).padStart(2,'0');
+  $('topic-index').textContent=(i+1)+'단계 · '+stage.where;
+  $('topic-title').textContent=stage.title;$('description').textContent=stage.desc;
+  for(const [key,data] of [['inputs',stage.inputs],['tasks',stage.tasks],['gates',stage.gates]]) $(key).replaceChildren(...data.map(text=>make('li',text)));
+  $('routes').replaceChildren(...stage.routes.map(([label,route])=>{
+    const link=make('a',label+' ↗');const origin=location.protocol==='file:'?'http://127.0.0.1:8080':location.origin;
+    link.href=origin+'/erp/#open='+route;link.target='_blank';link.rel='noopener';return link;
+  }));
+  $('trap').textContent=stage.trap;$('prev').disabled=i===0;$('next').textContent=i===stages.length-1?'상황 연습으로 →':'다음 공정 →';
+  $('checked').checked=visited.has(i);
+  drawMap();
+  if(focus){
+    const title=$('topic-title');
+    title.focus({preventScroll:true});
+    if(matchMedia('(max-width:630px)').matches)title.closest('article').scrollIntoView({block:'start'});
+  }
+}
+$('prev').addEventListener('click',()=>select(current-1,true));
+$('next').addEventListener('click',()=>current===stages.length-1?$('practice').scrollIntoView():select(current+1,true));
+$('checked').addEventListener('change',event=>event.target.checked?visited.add(current):visited.delete(current));
+scenarios.forEach((item,i)=>{
+  const button=make('button',item.label);button.className='btn';button.type='button';
+  button.addEventListener('click',()=>showCase(i));$('cases').append(button);cases.push(button);
+});
+function showCase(i){
+  const item=scenarios[i];
+  cases.forEach((button,j)=>button.setAttribute('aria-pressed',String(i===j)));
+  $('question').textContent=item.title;$('context').textContent=item.info;$('feedback').textContent='';
+  const options=item.options.map((option,j)=>{
+    const button=make('button',option);button.type='button';button.className='btn';button.setAttribute('aria-pressed','false');
+    button.addEventListener('click',()=>{
+      options.forEach((choice,k)=>choice.setAttribute('aria-pressed',String(k===j)));
+      $('feedback').textContent=(j===item.correct?'맞아요. ':'다시 확인해 볼까요? ')+(j===item.correct?item.answer:item.wrong);
+    });return button;
+  });
+  $('answers').replaceChildren(...options);
+}
+
+function drawMap(){
+  const canvas=$('map'),box=canvas.getBoundingClientRect();
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.round(box.width*dpr);canvas.height=Math.round(box.height*dpr);
+  if(!canvas.width||!canvas.height)return;
+  const c=canvas.getContext('2d');c.scale(canvas.width/1000,canvas.height/400);
+  function polygon(points,fill,stroke){
+    c.beginPath();c.moveTo(...points[0]);for(const p of points.slice(1))c.lineTo(...p);
+    c.closePath();c.fillStyle=fill;c.fill();if(stroke){c.strokeStyle=stroke;c.lineWidth=1;c.stroke();}
+  }
+  function line(points,color,width=1,dash=[]){
+    c.beginPath();c.moveTo(...points[0]);for(const p of points.slice(1))c.lineTo(...p);
+    c.strokeStyle=color;c.lineWidth=width;c.lineJoin='round';c.lineCap='round';c.setLineDash(dash);c.stroke();c.setLineDash([]);
+  }
+  function rect(x,y,w,h,fill){c.fillStyle=fill;c.fillRect(x,y,w,h);}
+  function building(x,y,w,h,roof,side){
+    polygon([[x+6,y+9],[x+w+11,y+9],[x+w+21,y+h+5],[x+12,y+h+5]],'#080e1840');
+    polygon([[x,y+h],[x+w,y+h],[x+w+12,y+h-12],[x+w+12,y-12],[x+w,y]],side);
+    rect(x,y,w,h,roof);
+    for(let a=9;a<w-7;a+=16)line([[x+a,y+3],[x+a,y+h-3]],'#ecfff427',1);
+    rect(x,y+h-7,w,7,'#23344245');
+  }
+  function ship(x,y,l,w,angle,hull){
+    c.save();c.translate(x,y);c.rotate(angle);
+    polygon([[-l*.44,-w*.56],[l*.24,-w*.56],[l*.54,2],[l*.24,w*.64],[-l*.44,w*.64]],'#122a337b');
+    polygon([[-l*.46,-w*.45],[l*.25,-w*.45],[l*.52,0],[l*.25,w*.45],[-l*.46,w*.45]],hull,'#163642');
+    rect(-l*.3,-w*.22,l*.53,w*.43,'#344b54');rect(-l*.37,-w*.31,l*.13,w*.62,'#e2ebe6');
+    for(const offset of [-.23,-.06,.11])rect(l*offset,-w*.16,l*.12,w*.32,'#a8aa8c');
+    c.restore();
+  }
+  function label(text,x,y){
+    c.font='700 14px system-ui';const w=c.measureText(text).width+15;
+    c.fillStyle='#102933e8';c.fillRect(x-w/2,y-11,w,20);
+    c.fillStyle='#e6f3f4';c.textAlign='center';c.textBaseline='middle';c.fillText(text,x,y);
+  }
+  const sea=c.createLinearGradient(570,0,980,400);sea.addColorStop(0,'#30606a');sea.addColorStop(1,'#143946');rect(0,0,1000,400,sea);
+  for(let y=7;y<400;y+=11)for(let x=640+(y*13)%33;x<1000;x+=48)line([[x,y],[x+12+(x+y)%17,y-2]],'#b6edf314',1);
+  polygon([[0,0],[729,0],[780,48],[729,117],[699,252],[672,325],[621,385],[620,400],[0,400]],'#152e35');
+  polygon([[0,0],[724,0],[769,45],[719,110],[686,248],[657,322],[610,378],[608,400],[0,400]],'#667d76','#b5c1aa');
+  polygon([[0,0],[233,0],[186,125],[60,134],[0,183]],'#506c5c');
+  polygon([[0,358],[191,366],[260,397],[0,400]],'#4f6c5f');
+  for(let x=15;x<635;x+=23)for(let y=19;y<395;y+=17)rect(x+(y%7),y,2,1,'#daf8cd1d');
+  const roads=[[[0,223],[194,223],[241,235],[483,235],[566,250],[661,250]],[[197,0],[197,223],[197,361],[251,392]],[[348,0],[348,111],[305,162],[305,225]],[[491,77],[491,146],[526,174],[601,178],[675,155],[716,118]],[[241,307],[397,307],[465,267]]];
+  for(const road of roads){line(road,'#4d625e',22);line(road,'#a5ae98',1,[6,7]);}
+  for(let r=0;r<4;r++)for(let col=0;col<9;col++){
+    const x=212+col*12;const y=264+r*8;
+    rect(x,y,9,5,['#caa678','#adc7b5','#a49b7f'][(r*3+col)%3]);
+  }
+  building(61,131,105,52,'#977d5e','#637267');building(229,58,89,52,'#aba184','#738373');
+  building(376,111,112,47,'#849fa0','#617c79');building(362,164,94,45,'#8da7a5','#587476');
+  building(517,99,107,47,'#949988','#5a766d');building(29,278,116,55,'#829585','#58796b');
+  building(561,193,64,37,'#94aa9e','#5a7468');
+  polygon([[448,287],[639,287],[684,276],[662,323],[621,369],[448,368]],'#354c4e','#c2c5a6');
+  polygon([[465,301],[632,301],[666,290],[640,328],[611,351],[465,352]],'#4a6260','#879788');
+  line([[470,294],[646,294]],'#e7b759',3);line([[470,357],[608,357]],'#e7b759',3);
+  ship(545,327,135,31,0,'#c0a170');
+  for(const x of [482,606]){
+    line([[x,291],[x,351]],'#ecd784',3);line([[x-11,284],[x+11,284],[x+11,296]],'#f5d98a',4);
+  }
+  polygon([[668,171],[858,158],[879,172],[876,201],[680,209]],'#173440');
+  polygon([[666,159],[859,145],[875,160],[874,190],[677,202]],'#84968b','#c4cab3');
+  for(let x=697;x<862;x+=28)line([[x,161],[x-4,189]],'#e1dfb66b',1);
+  line([[695,176],[858,164]],'#e7d49a',2,[4,5]);
+  ship(779,221,135,25,-.075,'#94cfc8');ship(817,118,125,23,-.075,'#d4c18a');
+  for(const [x,y] of [[705,178],[758,173],[812,169],[853,165]]){
+    rect(x-3,y-3,7,7,'#263d42');line([[x,y],[x+4,y+10],[x+15,y+21]],'#e9c980',2);
+  }
+  ship(905,286,98,22,-.38,'#9bbec5');
+  line([[861,301],[845,313],[826,320]],'#b0d8d762',2);line([[855,291],[839,301],[817,309]],'#b0d8d743',1.5);
+  const path=[[111,159],[197,158],[231,119],[270,99],[348,111],[398,190],[413,247],[512,329],[619,325],[649,300],[701,246],[779,212],[853,244],[916,308]];
+  line(path,'#0f292b9e',5);line(path,'#bee7cf',2,[5,7]);
+  line([[916,308],[951,243],[949,159],[839,128]],'#e7c879',2,[5,7]);
+  const [x,y]=stages[current].point;c.beginPath();c.ellipse(x,y,30,30,0,0,Math.PI*2);c.fillStyle='#75ffc737';c.fill();
+  if(box.width>580){
+    label('설계',108,195);label('자재 창고',272,137);label('블록 제작',402,221);
+    label('건조 도크',505,375);label('J 안벽',722,223);label('시운전 해역',915,348);
+  }
+}
+showCase(0);select(0);
+new ResizeObserver(drawMap).observe($('yard'));
+</script>
+</body>
+</html>

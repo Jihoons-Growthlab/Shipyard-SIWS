@@ -41,6 +41,45 @@ namespace ShipyardTwin.Tests
             Assert.Less(Vector3.Distance(expected, actual), tolerance, message + " expected " + expected + " got " + actual);
 
         [UnityTest]
+        public IEnumerator Goliath_TrolleyAndHooksStayAboveTheBlockWhileItLands()
+        {
+            var crane = Object.FindObjectsByType<HoverTarget>(FindObjectsSortMode.None)
+                .Single(target => target.Category == TargetCategory.Crane && target.Id == "FLEET-GC");
+            var trolley = crane.transform.Find("UpperTrolley");
+            var hooks = crane.transform.Cast<Transform>().Where(part => part.name == "Hook").ToArray();
+            Assert.IsNotNull(trolley);
+            Assert.AreEqual(2, hooks.Length);
+
+            // The same crane serves two docks on opposite sides of its rail centre line.
+            foreach (var hull in new[] { "SN2051", "SN2054" })
+            {
+                _ship.Select(hull);
+                var playback = _ship.Playback;
+                Assert.IsNotNull(playback);
+                var entry = playback.Schedule.Entries.First(e => _ship.LiftCrane(e.Block.block) == "FLEET-GC");
+                var previousHeight = float.PositiveInfinity;
+                foreach (var progress in new[] { 0.85f, 0.95f })
+                {
+                    playback.Seek(entry.FinishDay - entry.LiftDays * (1f - progress));
+                    yield return null;
+                    yield return null;
+                    Assert.IsTrue(_ship.CurrentLiftHooked, hull);
+                    Assert.AreEqual(entry.Block.block, _ship.CurrentLiftBlock.block);
+
+                    var block = _ship.CurrentLift.position;
+                    var hook = (hooks[0].position + hooks[1].position) / 2f;
+                    Assert.Less(Vector2.Distance(BlockMotion.YardOf(block), BlockMotion.YardOf(trolley.position)), 0.05f,
+                        "The upper trolley and goliath stand directly above the block.");
+                    Assert.Less(Vector2.Distance(BlockMotion.YardOf(block), BlockMotion.YardOf(hook)), 0.05f,
+                        "The hooks lower vertically below the trolley.");
+                    Assert.Greater(hook.y, _ship.CurrentLiftBounds.max.y);
+                    Assert.Less(hook.y, previousHeight);
+                    previousHeight = hook.y;
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Yard_PlacedAtStartupThenSimulatedPerHull()
         {
             var model = _ship.Model;

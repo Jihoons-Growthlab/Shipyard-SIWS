@@ -9,6 +9,7 @@
 | 호선별 탑재 재생과 크레인 | `Runtime/Erection/`의 `ShipView.cs`, `ErectionSchedule.cs`, `BlockMotion.cs`, `GantryCraneView.cs` |
 | 도로, 안벽, 시설과 지형 | `Runtime/Yard/`, [도로·안벽 명세](yard-road-quay-fix.md) |
 | 카메라와 오브젝트 이름 | `Runtime/Interaction/`, [호버·카메라 명세](yard-hover-camera.md) |
+| 오브젝트 클릭 상세 팝업과 그래프 | `Runtime/Dashboard/ObjectDetailView.cs`, `Runtime/Detail/`, [상세 팝업 명세](dashboard/object-detail.md) |
 | 패널, 아이콘과 수심도 UI | `Runtime/Dashboard/`, `Authoring/Dashboard.uxml`, [대시보드 명세](dashboard/README.md) |
 | 공용 메시, 재질과 좌표 변환 | `Runtime/Rendering/` |
 | 렌더링 제한과 성능 측정 | `Runtime/Performance/`, [성능 인수인계](performance-handoff.md) |

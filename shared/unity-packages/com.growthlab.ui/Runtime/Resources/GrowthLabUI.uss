@@ -81,3 +81,25 @@ Button:hover { background-color: rgb(42, 49, 64); }
 .gl-screen .unity-scroller .unity-base-slider__tracker { background-color: rgba(255, 255, 255, 0.04); border-width: 0; }
 .gl-screen .unity-scroller .unity-base-slider__dragger { background-color: var(--gl-border); border-width: 0; border-radius: 4px; }
 .gl-screen .unity-scroller__low-button, .gl-screen .unity-scroller__high-button { display: none; }
+
+/* ---------- Charts (GrowthLab.UI.Charts) ---------- */
+.gl-chart { --gl-chart-grid: rgba(255, 255, 255, 0.07); --gl-chart-track: rgba(255, 255, 255, 0.10); margin-bottom: 4px; }
+.gl-chart__header { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.gl-chart__title { font-size: 12px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0 8px 0 0; }
+.gl-chart__legend { flex-direction: row; flex-wrap: wrap; }
+.gl-chart__legend-item { flex-direction: row; align-items: center; margin-left: 8px; }
+.gl-chart__swatch { width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+.gl-chart__legend-text { font-size: 10px; color: var(--gl-text-dim); padding: 0; margin: 0; }
+.gl-chart__plot { position: relative; overflow: hidden; }
+.gl-chart__labels { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.gl-chart__label { font-size: 9px; color: var(--gl-text-dim); padding: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-chart__label--category { font-size: 9px; -unity-text-align: upper-center; }
+.gl-chart__label--value { font-size: 9px; color: var(--gl-text); -unity-font-style: bold; }
+.gl-chart__label--row { font-size: 10px; color: var(--gl-text); }
+.gl-chart__label--marker { font-size: 9px; color: var(--gl-alarm); -unity-font-style: bold; }
+.gl-chart__label--center { font-size: 20px; color: var(--gl-text); -unity-font-style: bold; }
+.gl-chart__label--center-caption { font-size: 9px; }
+.gl-chart__tooltip { position: absolute; font-size: 10px; color: var(--gl-text); background-color: rgba(8, 12, 20, 0.94);
+    border-radius: 5px; border-width: 1px; border-color: var(--gl-border); padding: 4px 7px; margin: 0; white-space: normal; max-width: 220px; }
+.gl-chart__empty { font-size: 11px; color: var(--gl-text-dim); padding: 10px 0; -unity-text-align: middle-center; white-space: normal; }
+.gl-chart__caption { font-size: 10px; color: var(--gl-text-dim); padding: 0; margin: 3px 0 0 0; white-space: normal; }

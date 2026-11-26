@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS data_upgrades(id TEXT PRIMARY KEY);
 PREFIXES = {
     'activities': 'OP', 'orders': 'WO', 'requirements': 'REQ', 'purchase_requests': 'PR',
     'purchase_orders': 'PO', 'goods_receipts': 'GR', 'issues': 'GI', 'moves': 'MV',
-    'production_results': 'RES', 'inventory_ledger': 'STK',
+    'production_results': 'RES', 'production_lots': 'PLOT', 'inventory_ledger': 'STK',
 }
 
 
@@ -44,7 +44,9 @@ def upgrade(db, insert, timestamp):
         if row['qty']:
             ledger(db, insert, timestamp, row['material'], row['location'], timestamp[:10],
                    '전환 기초잔액', row['id'], row['qty'])
-    for row in db.execute('SELECT * FROM orders WHERE actual IS NOT NULL ORDER BY id'):
+    for row in db.execute('''SELECT o.* FROM orders o
+        WHERE o.actual IS NOT NULL AND o.result IS NOT NULL AND o.inspection IN ('합격','불합격')
+        AND NOT EXISTS (SELECT 1 FROM production_results r WHERE r.work_order=o.id) ORDER BY o.id'''):
         insert(db, 'production_results', id=document_number(db, 'production_results'),
                work_order=row['id'], actual=row['actual'], result=row['result'],
                inspection=row['inspection'], reason='', recorded_at=None)

@@ -1,7 +1,7 @@
 """Example yard operations for the ERP plans: fleet, cranes, berths, quay shifts and outfitting works.
 
     python3 pipeline/generate_operations.py [--as-of 2026-11-17] [-o data/operations.jsonl]
-    python3 ../DataMigration/migrate.py data/operations.jsonl --apply
+    python3 ../../tools/migration/migrate.py data/operations.jsonl --apply
 
 Ten example hulls besides SN2040 move through the two docks of the generate_yard layout in 2026-2027
 (keel to launch about 10 weeks), then lie at the four berths of the 640 m pier for outfitting, go on sea trials and

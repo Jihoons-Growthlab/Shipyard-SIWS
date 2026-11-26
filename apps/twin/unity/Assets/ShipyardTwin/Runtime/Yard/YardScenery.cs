@@ -224,10 +224,20 @@ namespace ShipyardTwin
             { "office", "사무동" }, { "gatehouse", "정문 경비실" },
         };
 
-        private readonly List<(Transform Vehicle, Vector2[] Points, bool Loop, float Speed, float Offset)> _vehicles =
-            new List<(Transform, Vector2[], bool, float, float)>();
+        /// <summary>Scenery vehicles and machines: named and clickable, shown as background equipment (not in the ERP).</summary>
+        public static readonly Dictionary<string, (string Kind, string Name)> Machines = new Dictionary<string, (string, string)>
+        {
+            { "car_white", ("차량", "업무용 승용차") }, { "car_silver", ("차량", "업무용 승용차") }, { "car_black", ("차량", "업무용 승용차") },
+            { "car_red", ("차량", "업무용 승용차") }, { "truck", ("차량", "자재 운반 트럭") }, { "forklift", ("중장비", "지게차") },
+            { "transporter", ("중장비", "블록 트랜스포터") }, { "luffing_crane", ("중장비", "러핑 크레인") },
+        };
+
+        private readonly List<(Transform Vehicle, Vector2[] Points, bool Loop, float Speed, float Offset,
+            MeshRenderer Loaded, GameObject Empty)> _vehicles =
+            new List<(Transform, Vector2[], bool, float, float, MeshRenderer, GameObject)>();
 
         private ShipPalette _palette;
+        private YardDisplayLayers _displayLayers;
         private float _time;
 
         public void Construct(CoreContext context)
@@ -245,22 +255,49 @@ namespace ShipyardTwin
             }
 
             var scenery = SceneryFile.Parse(asset.text);
-            // Wider roads sit a little higher, so at junctions one surface wins instead of two flickering.
-            var order = scenery.roads.OrderBy(r => r.width).ToList();
-            for (var i = 0; i < order.Count; i++)
+            var roads = scenery.roads.Where(r => r.width > 0f &&
+                new Vector2(r.x1 - r.x0, r.y1 - r.y0).sqrMagnitude >= 0.25f).OrderByDescending(r => r.width).ToList();
+            var laid = new List<List<Vector2>>();
+            foreach (var road in roads)
             {
-                BuildRoad(order[i], 0.004f * i, scenery.roads);
+                BuildRoad(road, roads, laid);
             }
 
             var missing = 0;
-            foreach (var prop in scenery.props.Where(p => !p.model.StartsWith("GY-", StringComparison.Ordinal)))
+            context.Services.TryGet(out _displayLayers);
+            var buildings = _displayLayers?.ParentFor(transform, YardDisplayLayer.Buildings) ?? transform;
+            var vehicles = _displayLayers?.ParentFor(transform, YardDisplayLayer.Vehicles) ?? transform;
+            var cranes = _displayLayers?.ParentFor(transform, YardDisplayLayer.Cranes) ?? transform;
+            // With ERP rail cranes the RailCraneView draws (and moves) the quay and dock jib cranes instead.
+            var railCranes = context.Services.TryGet<YardDataSource>(out var source) && RailCraneView.HasRails(source);
+            _equipmentSource = source;
+            _equipmentParent = vehicles;
+            if (_equipmentSource != null)
             {
-                if (PropLibrary.TryCreate(prop.model, _palette, transform, out var go))
+                _equipmentSource.Changed += RefreshYardEquipment;
+                RefreshYardEquipment();
+            }
+
+            foreach (var prop in scenery.props.Where(p => !p.model.StartsWith("GY-", StringComparison.Ordinal) &&
+                                                          !(railCranes && p.model == RailCraneView.Model)))
+            {
+                var isBuilding = Buildings.TryGetValue(prop.model, out var label);
+                var isMachine = Machines.TryGetValue(prop.model, out var machine);
+                var parent = prop.model == RailCraneView.Model ? cranes : isBuilding ? buildings : isMachine ? vehicles : transform;
+                if (PropLibrary.TryCreate(prop.model, _palette, parent, out var go))
                 {
                     Place(go.transform, new Vector2(prop.x, prop.y), prop.heading);
-                    if (Buildings.TryGetValue(prop.model, out var label))
+                    if (isBuilding)
                     {
-                        HoverTarget.Attach(go, "시설", label, "부대 건물 (ERP 시설 아님)");
+                        HoverTarget.Attach(go, "시설", label, "부대 건물 (ERP 시설 아님)").Identify(TargetCategory.Prop, prop.model);
+                    }
+                    else if (isMachine)
+                    {
+                        var target = AttachSceneryMachine(go, prop.model, machine);
+                        target.IsHeavyEquipment = machine.Kind == "중장비" && prop.model != RailCraneView.Model;
+                        if (prop.model == RailCraneView.Model)
+                            target.CraneHazard = WalkHazardShape.Circle(
+                                RailCraneMotion.DangerRadius(CraneKinematicsRow.Default), estimated: true);
                     }
                 }
                 else
@@ -273,9 +310,23 @@ namespace ShipyardTwin
             {
                 var route = scenery.routes[i];
                 var points = route.Points();
-                if (points.Length >= 2 && PropLibrary.TryCreate(route.model, _palette, transform, out var go))
+                if (points.Length >= 2 && PropLibrary.TryCreate(route.model, _palette, vehicles, out var go))
                 {
-                    _vehicles.Add((go.transform, points, route.loop, Mathf.Max(0.1f, route.speed), i * 37f));
+                    var model = route.model == "transporter_loaded" ? "transporter" : route.model;
+                    if (Machines.TryGetValue(model, out var machine) && machine.Kind == "중장비" && model != RailCraneView.Model)
+                    {
+                        // Pick the vehicle body rather than the removable cargo above it.
+                        var mesh = PropLibrary.TryGet(model, out var body, out _) ? body : go.GetComponent<MeshFilter>().sharedMesh;
+                        var collider = go.AddComponent<BoxCollider>();
+                        collider.center = mesh.bounds.center;
+                        collider.size = mesh.bounds.size;
+                        AttachSceneryMachine(go, model, machine).IsHeavyEquipment = true;
+                    }
+                    GameObject empty = null;
+                    if (route.model == "transporter_loaded") PropLibrary.TryCreate("transporter", _palette, go.transform, out empty);
+                    if (empty != null) empty.SetActive(false);
+                    var loaded = empty != null ? go.GetComponent<MeshRenderer>() : null;
+                    _vehicles.Add((go.transform, points, route.loop, Mathf.Max(0.1f, route.speed), i * 37f, loaded, empty));
                 }
             }
 
@@ -287,13 +338,66 @@ namespace ShipyardTwin
             Update();
         }
 
+        private static HoverTarget AttachSceneryMachine(GameObject go, string model, (string Kind, string Name) machine) =>
+            HoverTarget.Attach(go, machine.Kind, machine.Name, "야드 배경 " + machine.Kind + " (ERP 장비 아님)")
+                .Identify(TargetCategory.Prop, model);
+
+        /// <summary>
+        /// Shows or hides the decorative vehicles on their scripted routes. They are hidden while the shared ERP replay
+        /// runs, so the only vehicles moving are the ERP equipment it reports.
+        /// </summary>
+        public void ShowTraffic(bool visible)
+        {
+            foreach (var entry in _vehicles)
+            {
+                if (entry.Vehicle != null) entry.Vehicle.gameObject.SetActive(visible);
+            }
+        }
+
         private void Update()
         {
             _time += Time.deltaTime;
-            foreach (var (vehicle, points, loop, speed, offset) in _vehicles)
+            var showCargo = _displayLayers?.IsVisible(YardDisplayLayer.Blocks) ?? true;
+            foreach (var (vehicle, points, loop, speed, offset, loaded, empty) in _vehicles)
             {
                 var (position, heading) = RouteMath.At(points, loop, offset + _time * speed);
                 Place(vehicle, position, heading);
+                if (loaded != null && loaded.enabled != showCargo)
+                {
+                    loaded.enabled = showCargo;
+                    empty.SetActive(!showCargo);
+                }
+            }
+        }
+
+        private YardDataSource _equipmentSource;
+        private Transform _equipmentParent;
+        private readonly List<GameObject> _yardEquipment = new List<GameObject>();
+
+        private void OnDestroy()
+        {
+            if (_equipmentSource != null) _equipmentSource.Changed -= RefreshYardEquipment;
+        }
+
+        private void RefreshYardEquipment()
+        {
+            foreach (var item in _yardEquipment) Destroy(item);
+            _yardEquipment.Clear();
+            var model = _equipmentSource.Model;
+            foreach (var spec in model?.Source?.equipment_specs ?? Array.Empty<YardEquipmentSpec>())
+            {
+                if (spec.equipment_type != "지게차") continue;
+                var station = model.Facilities.FirstOrDefault(f => f.location == spec.station && f.HasFootprint);
+                if (station == null || !PropLibrary.TryCreate("forklift", _palette, _equipmentParent, out var item)) continue;
+
+                var angle = station.heading_deg * Mathf.Deg2Rad;
+                var side = new Vector2(-Mathf.Sin(angle), Mathf.Cos(angle));
+                var position = new Vector2(station.x, station.y) + side * (station.size_y_m / 2f + 4f);
+                Place(item.transform, position, station.heading_deg);
+                var detail = $"{spec.equipment_type} · {spec.capacity_t:0.#} t · {HoverTarget.FacilityTitle(station)}";
+                HoverTarget.Attach(item, "중장비", spec.equipment, detail)
+                    .Identify(TargetCategory.Vehicle, spec.equipment, place: spec.station).IsHeavyEquipment = true;
+                _yardEquipment.Add(item);
             }
         }
 
@@ -332,9 +436,9 @@ namespace ShipyardTwin
             return false;
         }
 
-        private void BuildRoad(Road road, float lift, IReadOnlyList<Road> roads)
+        private void BuildRoad(Road road, IReadOnlyList<Road> roads, List<List<Vector2>> laid)
         {
-            var level = YardLayout.QuayLevel + 0.05f + lift;
+            var level = YardLayout.QuayLevel + 0.10f;
             var a = ShipCoordinates.YardToUnity(road.x0, road.y0, level);
             var b = ShipCoordinates.YardToUnity(road.x1, road.y1, level);
             var length = Vector3.Distance(a, b);
@@ -344,7 +448,28 @@ namespace ShipyardTwin
             }
 
             var rotation = Quaternion.LookRotation(b - a, Vector3.up);
-            Strip("Road", (a + b) / 2f, rotation, new Vector3(road.width, 0.1f, length + road.width), "road");
+            var surface = Surface(road);
+            var heading = Mathf.Atan2(surface.Along.y, surface.Along.x) * Mathf.Rad2Deg;
+            var footprint = Polygon2D.Oriented((surface.A + surface.B) / 2f, heading,
+                -surface.HalfLength, surface.HalfLength, -surface.HalfWidth, surface.HalfWidth);
+            var pieces = new List<List<Vector2>> { footprint };
+            foreach (var junction in laid)
+            {
+                pieces = pieces.SelectMany(piece => Polygon2D.ClipConvex(piece, junction).Count >= 3
+                    ? Polygon2D.Subtract(piece, junction)
+                    : new List<List<Vector2>> { piece }).ToList();
+            }
+
+            laid.Add(footprint);
+            foreach (var piece in pieces)
+            {
+                var surfaceObject = new GameObject("Road");
+                surfaceObject.transform.SetParent(transform, false);
+                surfaceObject.AddComponent<MeshFilter>().sharedMesh = Polygon2D.Flat(piece, level);
+                var renderer = surfaceObject.AddComponent<MeshRenderer>();
+                renderer.sharedMaterial = _palette.Get("road");
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
             var start = new Vector2(road.x0, road.y0);
             var dir = (new Vector2(road.x1, road.y1) - start) / length;
             var across = new Vector2(-dir.y, dir.x);
@@ -356,7 +481,7 @@ namespace ShipyardTwin
                     continue;
                 }
 
-                Strip("CentreLine", a + (b - a) * (d / length) + Vector3.up * 0.06f, rotation, new Vector3(0.18f, 0.02f, 4f), "road_marking");
+                Strip("CentreLine", a + (b - a) * (d / length) + Vector3.up * 0.02f, rotation, new Vector3(0.18f, 0.02f, 4f), "road_marking");
             }
 
             // Solid edge lines, broken where another road joins or crosses (sampled every 0.5 m).
@@ -378,7 +503,7 @@ namespace ShipyardTwin
                         if (end - runStart.Value > 1f)
                         {
                             var mid = start + dir * ((runStart.Value + end) / 2f) + offset;
-                            Strip("EdgeLine", ShipCoordinates.YardToUnity(mid.x, mid.y, level + 0.06f), rotation,
+                            Strip("EdgeLine", ShipCoordinates.YardToUnity(mid.x, mid.y, level + 0.02f), rotation,
                                 new Vector3(0.14f, 0.02f, end - runStart.Value), "road_marking");
                         }
 

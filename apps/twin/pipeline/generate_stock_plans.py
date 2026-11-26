@@ -2,7 +2,7 @@
 waits in the yard before its erection lift. Illustrative plans, not ERP production data.
 
     python3 pipeline/generate_stock_plans.py data/SN2040-blocks.jsonl data/SN2046-blocks.jsonl
-    python3 ../DataMigration/migrate.py data/stock_plans.jsonl --apply
+    python3 ../../tools/migration/migrate.py data/stock_plans.jsonl --apply
 
 Rules (one crane per dock lifts from the PE yard at the dock head, see GantryCraneView):
 - Staging: a block waits in its dock's PE yard (the yard at the dock head) for --pe-days before its erection

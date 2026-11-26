@@ -8,6 +8,10 @@
                 <tw:DashboardIcon glyph="mark" class="tw-mark-icon" />
             </ui:VisualElement>
             <ui:VisualElement class="tw-rail-divider" />
+            <ui:Button name="nav-search" class="tw-nav" tooltip="통합검색 (명칭·호선번호 SN·ID)">
+                <tw:DashboardIcon glyph="search" class="tw-nav-icon" />
+                <ui:Label text="통합검색" class="tw-nav-label" />
+            </ui:Button>
             <ui:Button name="nav-erection" class="tw-nav" tooltip="블록 탑재 시뮬레이션">
                 <tw:DashboardIcon glyph="crane" class="tw-nav-icon" />
                 <ui:Label text="블록 탑재" class="tw-nav-label" />
@@ -16,11 +20,7 @@
                 <tw:DashboardIcon glyph="depth" class="tw-nav-icon" />
                 <ui:Label text="수심도" class="tw-nav-label" />
             </ui:Button>
-            <ui:VisualElement class="gl-spacer" picking-mode="Ignore" />
-            <ui:Button name="nav-chat" class="tw-nav" tooltip="챗봇">
-                <tw:DashboardIcon glyph="chat" class="tw-nav-icon" />
-                <ui:Label text="챗봇" class="tw-nav-label" />
-            </ui:Button>
+            <!-- The assistant is the web page's yard guide character (/assistant/widget.js), not a rail button. -->
         </ui:VisualElement>
 
         <!-- Erection drawer (slides in from the rail) -->
@@ -32,9 +32,15 @@
                 </ui:Button>
             </ui:VisualElement>
             <ui:Label name="data-status" text="데이터 불러오는 중..." class="tw-data-status" />
-            <ui:ScrollView name="erection-scroll" mode="Vertical" class="gl-grow tw-scroll">
-                <ui:Label text="호선 선택" class="gl-section" />
-                <ui:VisualElement name="hull-list" class="tw-chips" />
+            <ui:ScrollView name="erection-scroll" mode="Vertical" mouse-wheel-scroll-size="48" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" class="gl-grow tw-scroll">
+                <ui:VisualElement class="tw-hull-head">
+                    <ui:Label text="호선 선택" class="gl-section" />
+                    <ui:Label name="hull-count" text="" class="tw-hull-count" />
+                </ui:VisualElement>
+                <ui:ScrollView name="hull-scroll" mode="Vertical" mouse-wheel-scroll-size="40" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" class="tw-hull-scroll">
+                    <ui:VisualElement name="hull-list" class="tw-hull-list" />
+                </ui:ScrollView>
+                <ui:VisualElement name="yard-stats" class="tw-stats" />
                 <ui:Label name="yard-summary" text="-" class="tw-wrap tw-dim tw-summary" />
                 <ui:VisualElement name="sim" class="tw-sim">
                     <ui:VisualElement class="tw-drawer-header">
@@ -49,43 +55,101 @@
                         <ui:Button name="play" text="재생" class="tw-primary gl-grow" />
                         <ui:Button name="speed" text="속도 ×1" class="tw-secondary" />
                         <ui:Button name="restart" text="처음부터" class="tw-secondary" />
+                        <ui:Button name="sim-exit" text="종료" class="tw-secondary" tooltip="탑재 시뮬레이션을 끝내고 계획일 야드 화면으로 돌아갑니다" />
                     </ui:VisualElement>
                     <ui:Label text="인양 중" class="gl-section" />
                     <gl:StatCard name="lift" title="대기" level="Offline">
-                        <ui:Label name="lift-detail" text="인양 중인 블록 없음" />
+                        <ui:Label name="lift-detail" text="인양 중인 블록 없음" class="tw-wrap" />
                     </gl:StatCard>
                 </ui:VisualElement>
                 <ui:Label name="sim-placeholder" text="호선을 고르면 그 호선의 탑재 시뮬레이션을 준비합니다. 재생을 눌러야 시작합니다." class="tw-wrap tw-dim" />
-                <ui:Label name="unplaced-title" text="미배치" class="gl-section" />
-                <ui:Label name="unplaced" text="-" class="tw-wrap tw-dim" />
-                <ui:Label text="왼쪽 드래그: 이동 · 오른쪽 드래그: 회전 · 가운데 드래그: 이동 · 휠: 확대&#10;1 전체 · 2 선수 · 3 선미 · 4 크레인 · 5 위 · 6 조선소 · F 따라가기" class="gl-subtitle tw-wrap" />
-                <ui:Label text="탑재 이력" class="gl-section" />
-                <gl:MessageList name="events" capacity="40" empty-text="아직 탑재된 블록 없음" class="tw-events" />
+                <ui:VisualElement name="history">
+                    <ui:Label text="탑재 이력" class="gl-section" />
+                    <gl:MessageList name="events" capacity="40" empty-text="아직 탑재된 블록 없음" class="tw-events" />
+                </ui:VisualElement>
+
+                <!-- Reference sections, folded: ERP yard plan of the hull, unplaced blocks, controls -->
+                <ui:Foldout name="erp-yard-plan" text="ERP 야드 일정" value="false" class="tw-fold" />
+                <ui:Foldout name="unplaced-fold" text="미배치 블록" value="false" class="tw-fold">
+                    <ui:Label text="계획일 기준으로 적치 계획이나 야드 좌표가 없어 3D 화면에 놓지 못한 블록입니다. ERP에서 적치 계획을 등록하면 표시됩니다." class="tw-wrap tw-dim tw-fold-note" />
+                    <ui:VisualElement name="unplaced" class="tw-unplaced" />
+                </ui:Foldout>
             </ui:ScrollView>
         </ui:VisualElement>
 
-        <!-- Chat drawer (same slot) -->
-        <ui:VisualElement name="chat-panel" class="gl-panel tw-drawer">
+
+        <!-- 통합검색 drawer (same slot; DashboardObjectSearch): name, hull number (SN) or ID → live icon cards; a card click moves the camera and opens the detail popup -->
+        <ui:VisualElement name="search-panel" class="gl-panel tw-drawer tw-search">
             <ui:VisualElement class="tw-drawer-header">
-                <ui:Label text="챗봇" class="gl-title tw-drawer-title" />
-                <ui:Button name="chat-close" class="tw-icon-button" tooltip="챗봇 닫기">
+                <ui:Label name="search-title" text="통합검색" class="gl-title tw-drawer-title" />
+                <ui:Button name="search-close" class="tw-icon-button" tooltip="통합검색 닫기">
                     <tw:DashboardIcon glyph="close" class="tw-icon-sm" />
                 </ui:Button>
             </ui:VisualElement>
-            <ui:VisualElement class="tw-drawer-header">
-                <ui:Label text="조선소 도우미" class="gl-subtitle tw-shrink" />
-                <ui:Label text="연결 준비 중" class="tw-status" />
+            <ui:VisualElement name="search-box" class="tw-search-box">
+                <tw:DashboardIcon glyph="search" class="tw-search-glass" />
+                <ui:TextField name="search-field" max-length="60" class="tw-search-field" />
+                <ui:Label name="search-placeholder" text="명칭·호선번호(SN)·ID" class="tw-search-placeholder" picking-mode="Ignore" />
+                <ui:Button name="search-clear" class="tw-icon-button tw-search-clear" tooltip="검색어 지우기">
+                    <tw:DashboardIcon glyph="close" class="tw-icon-sm" />
+                </ui:Button>
             </ui:VisualElement>
-            <ui:VisualElement class="gl-card">
-                <ui:Label text="챗봇이 아직 연결되지 않았습니다. 대화 기능은 다음 작업에서 연결합니다." class="tw-wrap" />
-            </ui:VisualElement>
+            <ui:Label name="search-status" text="" class="tw-search-status" />
+            <ui:ScrollView name="search-scroll" mode="Vertical" mouse-wheel-scroll-size="48" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" class="gl-grow tw-scroll tw-search-scroll">
+                <ui:VisualElement name="search-results" class="tw-search-results" />
+                <ui:VisualElement name="search-empty" class="tw-search-empty">
+                    <tw:DashboardIcon name="search-empty-icon" glyph="search" class="tw-search-empty-icon" />
+                    <ui:Label name="search-empty-title" text="통합검색" class="tw-search-empty-title" />
+                    <ui:Label name="search-empty-text" text="명칭이나 호선번호(예: SN2040), ID 일부를 입력하면 관련 호선·블록·크레인·시설·장비가 바로 나옵니다. 카드를 누르면 그 위치로 이동하고 상세 정보가 열립니다." class="tw-search-empty-text" />
+                </ui:VisualElement>
+            </ui:ScrollView>
         </ui:VisualElement>
 
-        <!-- Exit (top right) -->
-        <ui:Button name="exit" class="tw-exit" tooltip="종료">
-            <tw:DashboardIcon glyph="power" class="tw-exit-icon" />
-            <ui:Label text="종료" class="tw-exit-label" />
-        </ui:Button>
+        <!-- Yard calendar bar (bottom, while no hull is selected; YardClockView): the whole yard's plan replayed in a loop -->
+        <ui:VisualElement name="yard-clock" class="gl-panel tw-yardclock">
+            <ui:VisualElement class="tw-yc-head">
+                <ui:Label name="yard-clock-date" text="-" class="tw-yc-date" />
+                <ui:Label name="yard-clock-cycle" text="-" class="tw-yc-cycle" />
+                <ui:Button name="yard-clock-play" text="일시정지" class="tw-primary tw-tl-button" />
+                <ui:Button name="yard-clock-speed" text="×1" class="tw-secondary tw-tl-button" tooltip="재생 속도 (인양 중에는 자동 감속)" />
+            </ui:VisualElement>
+            <ui:VisualElement name="yard-clock-track" class="tw-yc-track" tooltip="눌러서 날짜 이동">
+                <ui:VisualElement name="yard-clock-fill" class="tw-yc-fill" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:Label name="yard-clock-activity" text="-" class="tw-yc-activity" />
+        </ui:VisualElement>
+
+        <!-- Simulation banner (top centre, while playing; ScheduleTimelineView): date and the work planned for it -->
+        <ui:VisualElement name="schedule-banner" class="gl-panel tw-banner" picking-mode="Ignore">
+            <ui:Label name="banner-date" text="-" class="tw-banner-date" picking-mode="Ignore" />
+            <ui:Label name="banner-text" text="-" class="tw-banner-text" picking-mode="Ignore" />
+        </ui:VisualElement>
+
+        <!-- Schedule bar (bottom, while a hull is selected; ScheduleTimelineView): whole plan of the hull as a Gantt chart -->
+        <ui:VisualElement name="timeline" class="gl-panel tw-timeline">
+            <ui:VisualElement class="tw-tl-head">
+                <ui:Label name="timeline-date" text="-" class="tw-tl-date" />
+                <ui:Label name="timeline-today" text="-" class="tw-tl-today" />
+                <ui:Button name="timeline-play" text="재생" class="tw-primary tw-tl-button" />
+                <ui:Button name="timeline-speed" text="×1" class="tw-secondary tw-tl-button" tooltip="재생 속도" />
+                <ui:Button name="timeline-restart" text="처음부터" class="tw-secondary tw-tl-button" />
+                <ui:Button name="timeline-exit" text="종료" class="tw-secondary tw-tl-button" tooltip="탑재 시뮬레이션을 끝내고 계획일 야드 화면으로 돌아갑니다" />
+                <ui:Button name="timeline-fit" text="전체 일정" class="tw-secondary tw-tl-button" tooltip="탑재 구간과 호선 전체 일정(입거~인도) 사이를 전환합니다" />
+                <ui:Button name="timeline-toggle" text="접기" class="tw-secondary tw-tl-button" tooltip="일정 차트 접기·펼치기" />
+            </ui:VisualElement>
+            <ui:VisualElement class="tw-tl-body">
+                <ui:VisualElement name="timeline-names" class="tw-tl-names" />
+                <ui:VisualElement name="timeline-canvas" class="tw-tl-canvas">
+                    <ui:VisualElement name="timeline-ticks" class="tw-tl-ticks" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:Label name="timeline-hover" text="" class="tw-tl-hover" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:VisualElement class="tw-tl-foot">
+                <ui:Label name="timeline-range" text="-" class="tw-tl-range" />
+                <ui:Label text="휠: 확대·축소 · 좌우 스와이프: 시간 이동 · Shift+휠·이름 열 휠: 행 이동 · 드래그: 이동 · 클릭: 그 날짜로" class="tw-tl-help tw-desktop-help" />
+                <ui:Label text="드래그: 이동 · 탭: 그 날짜로" class="tw-tl-help tw-touch-help" />
+            </ui:VisualElement>
+        </ui:VisualElement>
 
         <!-- Depth legend (bottom right, shown while the depth toggle is on; filled by DepthMapOverlay) -->
         <ui:VisualElement name="depth-legend" class="gl-panel tw-legend">
@@ -95,6 +159,181 @@
             </ui:VisualElement>
             <ui:VisualElement name="depth-scale" class="tw-scale" />
             <ui:Label name="depth-detail" text="측량 수심 자료가 없습니다." class="tw-wrap tw-dim" />
+        </ui:VisualElement>
+
+        <!-- Selected crane (top right, CraneSafetyView): danger zone and the load chart at the present hook radius -->
+        <ui:VisualElement name="crane-panel" class="gl-panel tw-crane">
+            <ui:VisualElement class="tw-drawer-header">
+                <ui:VisualElement class="tw-shrink">
+                    <ui:Label name="crane-title" text="크레인" class="tw-legend-title" />
+                    <ui:Label name="crane-sub" text="" class="tw-wrap tw-dim" />
+                </ui:VisualElement>
+                <ui:Button name="crane-close" class="tw-icon-button" tooltip="크레인 선택 해제">
+                    <tw:DashboardIcon glyph="close" class="tw-icon-sm" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="tw-stats">
+                <ui:VisualElement class="tw-stat tw-stat--danger">
+                    <ui:Label name="crane-danger" text="-" class="tw-stat-value" />
+                    <ui:Label text="위험반경" class="tw-stat-label" />
+                </ui:VisualElement>
+                <ui:VisualElement class="tw-stat tw-stat--radius">
+                    <ui:Label name="crane-radius" text="-" class="tw-stat-value" />
+                    <ui:Label text="현재 작업반경" class="tw-stat-label" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="tw-stats">
+                <ui:VisualElement name="crane-rated-tile" class="tw-stat tw-stat--rated">
+                    <ui:Label name="crane-rated" text="-" class="tw-stat-value" />
+                    <ui:Label text="이 반경 정격하중" class="tw-stat-label" />
+                </ui:VisualElement>
+                <ui:VisualElement name="crane-load-tile" class="tw-stat tw-stat--load">
+                    <ui:Label name="crane-load" text="-" class="tw-stat-value" />
+                    <ui:Label name="crane-load-label" text="인양 중량" class="tw-stat-label" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Label name="crane-state" text="" class="tw-crane-state" />
+            <ui:Label name="crane-chart-title" text="반경별 정격하중 (ERP 정격하중표)" class="gl-section" />
+            <ui:ScrollView name="crane-chart" mode="Vertical" mouse-wheel-scroll-size="32" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" class="tw-crane-chart" />
+            <ui:Label name="crane-note" text="" class="tw-wrap tw-dim tw-crane-note" />
+        </ui:VisualElement>
+
+        <!-- Object detail popup (ObjectDetailView): click a block, ship, crane, vehicle, dock, quay or building -->
+        <ui:VisualElement name="object-detail" class="gl-panel tw-detail">
+            <ui:VisualElement class="tw-detail-accent" picking-mode="Ignore" />
+            <ui:VisualElement class="tw-detail-head">
+                <ui:VisualElement class="tw-detail-heading">
+                    <ui:Label name="detail-kind" text="-" class="tw-detail-kind" />
+                    <ui:Label name="detail-title" text="-" class="tw-detail-title" />
+                    <ui:Label name="detail-subtitle" text="" class="tw-detail-subtitle" />
+                    <ui:VisualElement name="detail-status" class="tw-detail-status" />
+                    <!-- Heavy equipment only (EquipmentZone): the ground ring is a visual estimate, not an ERP radius -->
+                    <ui:Label name="detail-zone" text="" class="tw-detail-zone" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:Button name="detail-close" class="tw-icon-button" tooltip="닫기 (Esc)">
+                    <tw:DashboardIcon glyph="close" class="tw-icon-sm" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:ScrollView name="detail-scroll" mode="Vertical" mouse-wheel-scroll-size="48" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" class="tw-detail-scroll">
+                <ui:VisualElement name="detail-facts" class="tw-detail-facts" />
+                <ui:VisualElement name="detail-sections" class="tw-detail-sections" />
+            </ui:ScrollView>
+            <ui:Label name="detail-source" text="" class="tw-detail-source" />
+        </ui:VisualElement>
+
+        <!-- Third-person walk (OrbitCameraRig.SetWalking; DashboardShellView): guide shown on entry, thumb joystick on touch / compact screens -->
+        <ui:VisualElement name="walk-hint" class="gl-panel tw-walk-hint" picking-mode="Ignore">
+            <ui:Label text="3인칭 걸어보기" class="tw-walk-hint-title" picking-mode="Ignore" />
+            <ui:Label text="WASD · 화살표: 이동 · 오른쪽 드래그: 카메라 회전 · Esc: 지도 시점" class="tw-walk-hint-text tw-desktop-help" picking-mode="Ignore" />
+            <ui:Label text="왼쪽 아래 조이스틱: 이동 · 빈 곳 드래그: 카메라 회전 · 지도 시점 버튼: 복귀" class="tw-walk-hint-text tw-touch-help" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <!-- Walk hazard (DashboardShellView, OrbitCameraRig.WalkHazards): compact card above the bottom bars while walking inside a simulated crane/equipment zone; never takes the pointer -->
+        <ui:VisualElement name="walk-warning" class="tw-walk-warning" picking-mode="Ignore">
+            <ui:VisualElement class="tw-walk-warning-tile" picking-mode="Ignore">
+                <tw:DashboardIcon glyph="warning" class="tw-walk-warning-icon" />
+            </ui:VisualElement>
+            <ui:VisualElement class="tw-walk-warning-body" picking-mode="Ignore">
+                <ui:VisualElement class="tw-walk-warning-head" picking-mode="Ignore">
+                    <ui:Label text="위험 구역 진입" class="tw-walk-warning-title" picking-mode="Ignore" />
+                    <ui:Label name="walk-warning-sim" text="시뮬레이션" class="tw-walk-warning-badge" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:Label name="walk-warning-name" text="" class="tw-walk-warning-name" picking-mode="Ignore" />
+                <ui:Label name="walk-warning-range" text="" class="tw-walk-warning-range" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="walk-pad" class="tw-walk-pad" tooltip="끌어서 이동">
+            <ui:VisualElement class="tw-walk-pad-ring" picking-mode="Ignore" />
+            <ui:VisualElement name="walk-knob" class="tw-walk-knob" picking-mode="Ignore" />
+        </ui:VisualElement>
+
+        <!-- Walk pace (DashboardShellView → OrbitCameraRig.SetWalkPace): only while walking, under the 걸어보기/지도 시점 button -->
+        <ui:VisualElement name="walk-pace" class="tw-walk-pace">
+            <ui:Label text="속도" class="tw-walk-pace-label" picking-mode="Ignore" />
+            <ui:Button name="walk-pace-slow" text="느리게" class="tw-pace-button" tooltip="느리게 걷기" />
+            <ui:Button name="walk-pace-normal" text="보통" class="tw-pace-button tw-pace-button--on" tooltip="보통 걸음 (기본)" />
+            <ui:Button name="walk-pace-fast" text="빠르게" class="tw-pace-button" tooltip="빠르게 걷기" />
+            <ui:Button name="walk-avatar-toggle" text="일꾼" class="tw-avatar-toggle" tooltip="캐릭터 선택 (관리자)" />
+        </ui:VisualElement>
+        <!-- Character (admin only while walking; DashboardShellView → OrbitCameraRig.SetWalkAvatar): folds after a choice -->
+        <ui:VisualElement name="walk-avatar-menu" class="gl-panel tw-avatar-menu">
+            <ui:Label text="캐릭터 선택" class="tw-avatar-menu-title" picking-mode="Ignore" />
+            <ui:Button name="walk-avatar-worker" class="tw-avatar-option" tooltip="누더기 작업복의 일꾼">
+                <ui:Label text="일꾼" class="tw-avatar-option-name" picking-mode="Ignore" />
+                <ui:Label text="누더기 작업복 · 지게" class="tw-avatar-option-text" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="walk-avatar-steward" class="tw-avatar-option" tooltip="단정한 중인 복장">
+                <ui:Label text="중인" class="tw-avatar-option-name" picking-mode="Ignore" />
+                <ui:Label text="단정한 도포 · 장부" class="tw-avatar-option-text" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="walk-avatar-master" class="tw-avatar-option" tooltip="은발·수염의 노년 무림고수">
+                <ui:Label text="무림고수" class="tw-avatar-option-name" picking-mode="Ignore" />
+                <ui:Label text="은발 · 수염 · 지팡이" class="tw-avatar-option-text" picking-mode="Ignore" />
+            </ui:Button>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="top-nav" class="tw-top-nav" picking-mode="Ignore">
+            <ui:Button name="nav-walk" class="tw-top-button tw-walk-button" tooltip="3인칭으로 야드 걸어보기">
+                <tw:DashboardIcon name="nav-walk-icon" glyph="walk" class="tw-top-icon" />
+                <ui:Label name="nav-walk-label" text="걸어보기" class="tw-top-label" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="nav-yard-clock" class="tw-top-button" tooltip="야드 재생 바 표시">
+                <tw:DashboardIcon glyph="calendar" class="tw-top-icon" />
+                <ui:Label text="야드 일정" class="tw-top-label" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="nav-layers" class="tw-top-button" tooltip="표시 항목">
+                <tw:DashboardIcon glyph="layers" class="tw-top-icon" />
+                <ui:Label text="표시 항목" class="tw-top-label" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="nav-help" class="tw-top-button" tooltip="조작 도움말">
+                <tw:DashboardIcon glyph="help" class="tw-top-icon" />
+                <ui:Label text="도움말" class="tw-top-label" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="exit" class="tw-top-button tw-exit" tooltip="종료">
+                <tw:DashboardIcon glyph="power" class="tw-top-icon" />
+                <ui:Label text="종료" class="tw-top-label" picking-mode="Ignore" />
+            </ui:Button>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="layers-panel" class="gl-panel tw-utility-panel">
+            <ui:VisualElement class="tw-drawer-header">
+                <ui:Label text="표시 항목" class="gl-title" />
+                <ui:Button name="layers-close" class="tw-icon-button" tooltip="표시 항목 닫기">
+                    <tw:DashboardIcon glyph="close" class="tw-icon-sm" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:ScrollView mode="Vertical" class="tw-layer-scroll">
+                <ui:Toggle name="layer-cranes" label="크레인" value="true" class="tw-layer-toggle" />
+                <ui:Toggle name="layer-vehicles" label="중장비·차량" value="true" class="tw-layer-toggle" />
+                <ui:Toggle name="layer-buildings" label="건물" value="true" class="tw-layer-toggle" />
+                <ui:Toggle name="layer-hulls" label="호선" tooltip="탑재를 완료한 선체 표시" value="true" class="tw-layer-toggle" />
+                <ui:Toggle name="layer-blocks" label="블록" tooltip="적치·운반·인양 중인 블록 표시" value="true" class="tw-layer-toggle" />
+            </ui:ScrollView>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="help-panel" class="gl-panel tw-utility-panel">
+            <ui:VisualElement class="tw-drawer-header">
+                <ui:Label text="조작 도움말" class="gl-title" />
+                <ui:Button name="help-close" class="tw-icon-button" tooltip="도움말 닫기">
+                    <tw:DashboardIcon glyph="close" class="tw-icon-sm" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:ScrollView name="help-scroll" mode="Vertical" class="tw-help-scroll">
+                <ui:VisualElement class="tw-keys tw-desktop-help">
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="왼쪽 드래그" class="tw-key" /><ui:Label text="땅을 잡고 이동" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="오른쪽 드래그 · Alt+왼쪽" class="tw-key" /><ui:Label text="회전" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="휠" class="tw-key" /><ui:Label text="커서 쪽으로 확대·축소" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="더블클릭" class="tw-key" /><ui:Label text="그 지점을 가운데로" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="WASD · 화살표" class="tw-key" /><ui:Label text="이동 · Q/E 회전 · +/- 확대" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="1 – 6" class="tw-key" /><ui:Label text="전체 · 선수 · 선미 · 크레인 · 위 · 조선소" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="F" class="tw-key" /><ui:Label text="인양 블록 따라가기" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="3인칭 걸어보기" class="tw-key" /><ui:Label text="WASD·화살표 이동 · 오른쪽 드래그 카메라 회전 · Esc 지도 시점 · 오른쪽 위에서 속도 선택" class="tw-key-text" /></ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="tw-keys tw-touch-help">
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="한 손가락" class="tw-key" /><ui:Label text="이동" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="두 손가락" class="tw-key" /><ui:Label text="회전 · 벌리고 모아 확대" class="tw-key-text" /></ui:VisualElement>
+                    <ui:VisualElement class="tw-key-row"><ui:Label text="3인칭 걸어보기" class="tw-key" /><ui:Label text="조이스틱 이동 · 빈 곳 드래그 카메라 회전 · 오른쪽 위 속도 선택 · 지도 시점 버튼 복귀" class="tw-key-text" /></ui:VisualElement>
+                </ui:VisualElement>
+            </ui:ScrollView>
         </ui:VisualElement>
 
         <!-- Hover tooltip beside the cursor (HoverTooltipView); never takes the pointer -->

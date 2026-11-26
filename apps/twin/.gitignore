@@ -12,7 +12,7 @@ unity/Assets/ShipyardTwin/Generated.meta
 # Outputs
 Builds/
 TestResults/
-data/
+/data/
 __pycache__/
 .DS_Store
 

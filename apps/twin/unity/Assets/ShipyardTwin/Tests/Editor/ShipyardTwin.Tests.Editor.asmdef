@@ -4,6 +4,7 @@
   "references": [
     "ShipyardTwin",
     "GrowthLab.Core",
+    "GrowthLab.UI",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],

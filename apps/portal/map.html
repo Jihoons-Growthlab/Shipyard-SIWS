@@ -6,49 +6,240 @@
 <title>조선소 지도 · ShipYard</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <style>
+:root{
+  --ink:#152b3c;--ink-2:#41586b;--ink-3:#6b8193;--line:#dbe4eb;--line-2:#c7d4de;--panel:#ffffff;--page:#f2f5f8;
+  --accent:#0b6b74;--accent-soft:#e3f2f3;--warn:#d5821c;--sea:#bcd6e2;
+  --k-dock:#2f7fb0;--k-quay:#8f7fd6;--k-shop:#efb44a;--k-yard:#3fb995;--k-store:#e07fb0;--k-hull:#f0643f;
+  --radius:12px;--shadow:0 6px 22px rgba(16,40,62,.10);
+}
 *{box-sizing:border-box}
-body{margin:0;color:#162d41;background:#f3f7fa;font:14px/1.5 system-ui,sans-serif;word-break:keep-all}
-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;background:#10283e;color:white}
-h1,h2,p{margin:0}h1{font-size:20px}header p{color:#b7cedd;font-size:12px}
-header a{color:white;text-decoration:none;padding:7px 12px;border:1px solid #587286;border-radius:7px;white-space:nowrap}
-main{display:grid;grid-template-columns:minmax(0,1fr) 320px;height:calc(100dvh - 72px);min-height:520px}
-.map-area{position:relative;min-height:360px}
-#map{height:100%;background-color:#153247;background-image:linear-gradient(#ffffff0c 1px,transparent 1px),linear-gradient(90deg,#ffffff0c 1px,transparent 1px);background-size:32px 32px}
-.map-tools{position:absolute;right:14px;top:14px;z-index:500;display:flex;gap:8px}
-button{font:inherit;cursor:pointer;color:inherit;background:#fff;border:1px solid #ccd9e2;border-radius:7px;padding:7px 10px}
-button:focus-visible,a:focus-visible{outline:3px solid #17a6ba;outline-offset:2px}
-aside{padding:20px;background:#fff;border-left:1px solid #d5e0e8;overflow:auto}
-aside h2{font-size:17px;margin:0 0 8px}.muted{color:#526a7d;font-size:13px}
-.filters{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
-.filters button[aria-pressed=true],.item[aria-pressed=true]{background:#e5f4f6;border-color:#398c98}
-#details{border:1px solid #d6e4eb;border-radius:10px;background:#f5fafc;padding:12px;margin:14px 0}
-#details strong{display:block;margin-bottom:4px}
-#list{display:grid;gap:6px}.item{display:flex;align-items:center;gap:9px;text-align:left}
-.dot{width:10px;height:10px;flex:none;border-radius:50%}
-.map-label{background:#10283eeb;color:white;border:1px solid #7094a4;border-radius:5px;padding:2px 6px;box-shadow:none;font-weight:650}
-.map-label::before{display:none}
-#status:empty{display:none}#status{margin-top:10px}
+body{margin:0;color:var(--ink);background:var(--page);font:14px/1.5 "Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;word-break:keep-all}
+h1,h2,h3,p{margin:0}
+button{font:inherit;cursor:pointer;color:inherit;background:#fff;border:1px solid var(--line-2);border-radius:999px;padding:6px 12px}
+button:hover{background:#f4f8fb}
+button:focus-visible,a:focus-visible,input:focus-visible,.viewer:focus-visible{outline:3px solid #17a6ba;outline-offset:2px}
 [hidden]{display:none!important}
-@media(max-width:760px){main{height:auto;display:block}.map-area{height:56dvh}aside{border-left:0}}
+.muted{color:var(--ink-3);font-size:13px}
 
+/* Brand header (shared with the portal) */
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;background:#fff;color:#18374c;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .hoon-lockup{display:inline-flex;align-items:center;gap:12px;color:#18374c;white-space:nowrap}
 .hoon-word{display:inline-flex;align-items:center;gap:0;line-height:1}
 .hoon-word img{display:block;width:42px;height:42px;object-fit:contain;mix-blend-mode:multiply;filter:grayscale(1) invert(1) contrast(2) url(#hoon-ink)}
 .hoon-word b{font:italic 700 48px/.86 "Snell Roundhand","Apple Chancery","Brush Script MT",cursive;letter-spacing:-.05em;padding:0 3px 4px 0}
 .hoon-industry{font-weight:750;font-size:13px;letter-spacing:.11em;border-left:1px solid #9eb2c0;padding-left:12px}
-.hoon-lockup.hoon-on-dark{color:#fff}
-.hoon-on-dark .hoon-word img{mix-blend-mode:lighten;filter:none}
-.hoon-on-dark .hoon-industry{color:#d6e7ee}
-.hoon-account{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;font:400 14px/1.55 Inter,"Apple SD Gothic Neo",system-ui,sans-serif;color:#3f566a}
-.hoon-account button,.hoon-account a{font:inherit;padding:6px 12px;min-height:0;color:inherit;background:#fff;border:1px solid #cdd8e2;border-radius:7px;box-shadow:none}
-.hoon-account button:hover,.hoon-account a:hover{background:#eef4f8;filter:none}
-.hoon-account[hidden]{display:none}
-@media(max-width:570px){.hoon-lockup{gap:6px}.hoon-word img{width:32px;height:32px}.hoon-word b{font-size:37px}.hoon-industry{font-size:9px;padding-left:6px}}
+.hoon-account{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;font-size:14px;color:#3f566a}
+.hoon-account button,.hoon-account a{font:inherit;padding:6px 12px;color:inherit;background:#fff;border:1px solid #cdd8e2;border-radius:8px;text-decoration:none}
+@media(max-width:570px){header{padding:10px 14px}.hoon-lockup{gap:6px}.hoon-word img{width:32px;height:32px}.hoon-word b{font-size:37px}.hoon-industry{font-size:9px;padding-left:6px}}
 
-header{background:#fff;color:#18374c;border-bottom:1px solid #dce5ed;flex-wrap:wrap}
+/* Layout */
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;height:calc(100dvh - 67px);min-height:560px}
+.map-area{position:relative;height:100%;min-height:380px}
+#map{position:absolute;inset:0;background:linear-gradient(160deg,#cfe2ea,#b5cfdc)}
+.base-plan:not(.no-plan) #map{background:#dfe8e6}
+.map-area:not(.base-plan) #map{background:#23383d}
+aside{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:20px 20px 28px}
 
-#map-logout[hidden]{display:none}
+/* Map overlays */
+.map-tools{position:absolute;right:14px;top:14px;z-index:500;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.glass{background:rgba(255,255,255,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.7);box-shadow:var(--shadow)}
+.map-tools button{border-radius:10px;padding:8px 12px;font-weight:600}
+.segmented{display:inline-flex;border-radius:10px;padding:3px;gap:2px}
+.segmented button{border:0;background:transparent;border-radius:8px;padding:5px 11px;font-weight:600;color:var(--ink-2)}
+.segmented button[aria-pressed=true]{background:var(--ink);color:#fff}
+.legend{position:absolute;left:14px;bottom:30px;z-index:500;border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:12px;color:var(--ink-2)}
+.legend span{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.swatch{width:12px;height:12px;border-radius:3px;flex:none;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.18)}
+.leaflet-control-scale-line{border-color:#41586b;color:#41586b;background:rgba(255,255,255,.75)}
+.leaflet-imagery-pane img{transition:filter .35s}
+/* Fallback when the plan basemap could not be built: the photo, muted. */
+.base-plan.no-plan .leaflet-imagery-pane img{filter:saturate(.18) brightness(1.12) contrast(.86) sepia(.08)}
+.leaflet-site-pane svg{filter:drop-shadow(0 2px 3px rgba(20,40,60,.35))}
+.leaflet-ships-pane svg{filter:drop-shadow(0 2px 2px rgba(10,25,40,.35))}
+path.facility{transition:stroke-width .2s}
+path.facility.is-selected{stroke:#0f6c75;stroke-width:4;stroke-opacity:1}
+.zoom-far path.fine{display:none}
+.zoom-mid path.finest,.zoom-far path.finest{display:none}
+.map-label{background:rgba(255,255,255,.94);color:var(--ink);border:0;border-radius:999px;padding:2px 8px 2px 6px;box-shadow:0 1px 4px rgba(16,40,62,.25);font:600 11px/1.4 "Apple SD Gothic Neo",system-ui,sans-serif;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.map-label::before{display:none}
+.map-label i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.zoom-far .map-label{display:none}
+.zone-label{background:none;border:0}
+.zone-label div{transform:translate(-50%,-50%);display:inline-block;white-space:nowrap;padding:5px 12px;border-radius:999px;background:rgba(16,40,62,.82);color:#fff;font:700 13px/1.3 "Apple SD Gothic Neo",system-ui,sans-serif;box-shadow:0 3px 10px rgba(16,40,62,.3)}
+.zone-label small{font-weight:500;opacity:.75;margin-left:6px}
+.zoom-near .zone-label{display:none}
+
+/* Facility panel */
+.panel-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.panel-title h2{font-size:19px;letter-spacing:-.01em}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.stat{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fbfcfd}
+.stat b{display:block;font-size:20px;line-height:1.2}
+.stat span{font-size:12px;color:var(--ink-3)}
+.search{position:relative;margin:4px 0 12px}
+.search input{width:100%;font:inherit;padding:9px 12px 9px 34px;border:1px solid var(--line-2);border-radius:10px;background:#fff}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-3)}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;font-size:13px}
+.chip[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:650}
+.chip em{font-style:normal;font-size:11px;color:var(--ink-3)}
+.label-sm{font-size:12px;font-weight:700;color:var(--ink-3);letter-spacing:.04em;margin-top:12px}
+#details{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,#fbfdfe,#f4f8fa);padding:14px;margin:14px 0}
+#details h3{font-size:16px;margin:4px 0 6px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;padding:2px 9px;border-radius:999px;background:#fff;border:1px solid var(--line)}
+.facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:10px 0 0;font-size:13px}
+.facts dt{color:var(--ink-3)}.facts dd{margin:0;overflow-wrap:anywhere}
+.group h4{margin:16px 0 6px;font-size:12px;color:var(--ink-3);letter-spacing:.04em;display:flex;justify-content:space-between}
+.item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border-radius:10px;border-color:transparent;padding:8px 10px;background:transparent}
+.item:hover{background:#f3f7fa}
+.item[aria-pressed=true]{background:var(--accent-soft);border-color:#9fd0d4}
+.item span:nth-child(2){flex:1}
+.item small{color:var(--ink-3);font-size:12px}
+#status:empty{display:none}#status{margin-top:10px;color:#a1452b}
+
+/* Equipment monitor */
+.monitor-heading{padding:14px 20px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}
+.monitor-heading h1{font-size:23px}
+.monitor-tabs{display:flex;gap:4px;padding:3px;border-radius:12px;background:#e6edf2}
+.monitor-tabs button{border:0;background:transparent;border-radius:9px;padding:6px 16px;font-weight:650;color:var(--ink-2)}
+.monitor-tabs button[aria-pressed=true]{background:#fff;color:var(--accent);box-shadow:0 1px 4px rgba(16,40,62,.16)}
+.equipment-mode main{grid-template-columns:minmax(0,1fr) 380px;gap:16px;padding:0 20px 20px;height:auto;min-height:0}
+.equipment-mode .map-area{height:clamp(420px,calc(100dvh - 67px - 72px - 250px),900px);border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow)}
+.equipment-mode aside,.monitor-log{border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+.equipment-mode aside{position:sticky;top:12px;align-self:start;max-height:calc(100dvh - 24px)}
+.monitor-log{margin-top:16px;padding:12px 14px;overflow:auto;max-height:234px}
+.monitor-log h2{font-size:16px}
+.monitor-log table{width:100%;text-align:left;border-collapse:collapse;white-space:nowrap;font-size:13px}
+.monitor-log th,.monitor-log td{padding:6px 8px;border-bottom:1px solid #e5edf3}
+.monitor-log thead th{position:sticky;top:-12px;background:#fff;color:var(--ink-3);font-weight:650}
+.monitor-log tbody:empty::after{content:'수집을 시작하면 관측값이 여기에 표시됩니다.';display:block;padding:14px 8px;color:var(--ink-3)}
+.monitor-label{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+#signal{color:var(--accent);font-size:12px;font-weight:700}
+#asset-title{font-size:19px}
+#asset-subtitle{margin-top:2px}
+#asset-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:46px;gap:6px;max-height:156px;margin:12px 0;padding:3px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+#asset-list:empty{display:none}
+#asset-list button{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;border-radius:10px;padding:4px 8px;line-height:1.3;text-align:left;min-width:0}
+#asset-list button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#asset-list button small{font-size:11px;color:var(--ink-3)}
+#asset-list button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+#asset-list button[aria-pressed=true] small{color:#d7f0f2}
+#asset-facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;margin:14px 0}
+#asset-facts dt{color:var(--ink-3)}#asset-facts dd{margin:0;overflow-wrap:anywhere}
+.asset-placeholder{padding:12px;margin-top:10px;border-radius:10px;border:1px dashed #b5c9d6;background:#f5f9fb}
+.asset-marker{background:none;border:0}
+.asset-marker .tag{position:absolute;left:50%;transform:translateX(-50%);bottom:0;background:var(--accent);color:#fff;border:2px solid #fff;border-radius:7px;padding:0 6px;line-height:18px;font-size:10px;font-weight:800;box-shadow:0 2px 7px #10283e88;white-space:nowrap}
+.asset-marker svg{position:absolute;left:50%;top:0;margin-left:-17px;width:34px;height:34px;filter:drop-shadow(0 2px 2px rgba(10,25,40,.45));transition:transform .9s linear}
+.asset-marker.active .tag{background:var(--warn);color:#142d3c}
+.asset-marker.idle .tag{background:#6d8392}
+.monitor-legend{position:absolute;left:14px;bottom:30px;z-index:500;border-radius:12px;padding:9px 12px;display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.monitor-legend span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.monitor-legend i{width:10px;height:10px;border-radius:3px;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(16,40,62,.25)}
+
+/* 360° viewer */
+.viewer{position:relative;aspect-ratio:16/11;border-radius:14px;overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none;
+  background:radial-gradient(120% 90% at 50% 38%,#ffffff 0%,#eef3f6 55%,#dbe4ea 100%);border:1px solid var(--line);cursor:grab}
+.viewer.viewer-dragging{cursor:grabbing}
+.viewer canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.viewer-badge{position:absolute;left:12px;top:12px;font:800 12px/1 system-ui;letter-spacing:.04em;padding:6px 9px;border-radius:999px;background:rgba(16,40,62,.82);color:#fff}
+.viewer-angle{position:absolute;right:12px;top:12px;font:600 12px/1 ui-monospace,SFMono-Regular,monospace;color:var(--ink-2);padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.8)}
+.viewer-hint{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;background:rgba(16,40,62,.78);color:#fff;font-size:12.5px;font-weight:600;pointer-events:none;transition:opacity .4s;white-space:nowrap}
+.viewer-hint svg{animation:swipe 1.6s ease-in-out infinite}
+@keyframes swipe{0%,100%{transform:translateX(-5px)}50%{transform:translateX(5px)}}
+.viewer-touched .viewer-hint{opacity:0}
+.viewer-foot{position:absolute;left:10px;right:10px;bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.viewer-foot strong{font-size:13px;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.85)}
+.viewer-foot button{padding:5px 11px;font-size:12px;background:rgba(255,255,255,.9)}
+.viewer-status{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-3);font-size:13px;text-align:center;padding:20px}
+.viewer-dial{height:4px;margin:8px 4px 0;border-radius:2px;background:var(--line);position:relative}
+.viewer-dial span{position:absolute;top:-3px;width:10px;height:10px;border-radius:50%;background:var(--accent);left:calc(var(--angle,0) / 360 * 100% - 5px)}
+.spec-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.spec-chips span{font-size:12px;padding:3px 9px;border-radius:999px;background:#f1f5f8;border:1px solid var(--line);color:var(--ink-2)}
+
+@media(max-width:900px){
+  main{display:block;height:auto}
+  .map-area{height:62dvh}
+  aside{border-left:0;border-top:1px solid var(--line)}
+  .legend{display:none}
+  .equipment-mode main{display:block;padding:0 12px 12px}
+  .equipment-mode aside{margin-top:12px}
+  .monitor-heading{padding-inline:12px}
+}
+.siws-home{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 11px;border:0;border-radius:9px;background:transparent;color:#075c67;font:650 13px/1.4 system-ui,sans-serif;text-decoration:none;white-space:nowrap}.siws-home:hover{background:#eef6f7}.siws-home:focus-visible{outline:3px solid #58aab7;outline-offset:2px}
+.hoon-account .map-profile-toggle{display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:6px 9px;border:0;border-radius:9px;background:transparent;color:#345267;font-size:13px;font-weight:650;text-decoration:none;cursor:pointer;white-space:nowrap}
+.hoon-account .map-profile-toggle:hover{background:#f0f5f8;color:#00616f}
+.hoon-account svg{flex:none;width:18px;height:18px}
+.hoon-account :is(a,summary):focus-visible{outline:3px solid #78bec9;outline-offset:2px}
+#map-profile{position:relative;padding:0}
+.hoon-account #map-profile summary{background:#eaf3f4;color:#12606b;list-style:none}
+#map-profile summary::-webkit-details-marker{display:none}
+#map-account{max-width:clamp(70px,22vw,180px);overflow:hidden;text-overflow:ellipsis}
+header{position:relative;z-index:1000}
+.hoon-account a.siws-home{min-height:42px;padding:0 11px;color:#075c67;border:0;background:transparent}
+.hoon-account a.siws-home:hover{background:#eef6f7}
+.map-profile-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:30;min-width:185px;padding:6px;border:1px solid #dce5ed;border-radius:12px;background:#fff;box-shadow:0 8px 26px #19374d24}
+#map-profile-info{margin:0 0 4px;padding:7px 9px;border-bottom:1px solid #e4ebef;font-size:12px;overflow-wrap:anywhere}
+.hoon-account .map-profile-panel button{display:flex;align-items:center;gap:8px;width:100%;min-height:42px;padding:7px 9px;border:0;text-align:left;font-size:13px}
+#map-logout{color:#96352d}
+
+.hoon-account .map-profile-panel button{justify-content:flex-start;box-shadow:none}.hoon-account .map-profile-panel button:hover{background:#fff1ee}
+.block-focus .facts{margin-top:10px}.block-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.block-actions a{display:inline-flex;align-items:center;min-height:40px;padding:0 12px;border:1px solid #bed3d7;border-radius:9px;color:#075c67;background:#eef6f7;font-weight:650;text-decoration:none}
+#collection-toggle{min-height:40px;border-radius:9px;border-color:#bed3d7;background:#eef6f7;color:#075c67;font-weight:650}#collection-toggle:disabled{opacity:.55;cursor:not-allowed}
+
+.sensor-panel{padding:12px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#f7fafc}
+.sensor-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.sensor-heading span,#sensor-controls label{font-size:12px;color:var(--ink-2)}
+.sensor-panel figure{margin:10px 0}
+.sensor-panel figcaption{font-size:12px;font-weight:650;display:flex;justify-content:space-between}
+.sensor-panel svg{display:block;width:100%;height:60px;background:#fff;border:1px solid var(--line);border-radius:6px}
+#sensor-time{display:block;width:100%;accent-color:var(--accent);margin:4px 0 6px}
+#sensor-readout,#sensor-plan{font-size:12px;overflow-wrap:anywhere}
+#sensor-latest{margin-top:8px;font-size:12px}
+
+/* SIWS global navigation */
+.siws-nav{--nav-text:#42596c;--nav-current:#00616f;--nav-selected:#e7f2f3;--nav-hover:#f0f5f7;display:flex;align-items:center;justify-content:center;gap:2px;min-width:0;max-width:100%;position:static;padding:0;margin:0;border:0;border-radius:0;background:transparent;box-sizing:border-box}
+.siws-nav a{display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;min-height:38px;padding:6px 9px;border:0;border-radius:7px;background:transparent;color:var(--nav-text);font:600 13px/1.3 system-ui,sans-serif;text-decoration:none;white-space:nowrap;filter:none;box-shadow:none}
+.siws-nav a:hover{background:var(--nav-hover);color:var(--nav-current)}
+.siws-nav a[aria-current="page"]{background:var(--nav-selected);color:var(--nav-current);font-weight:700}
+.siws-nav a:focus-visible{outline:2px solid #178594;outline-offset:-2px}
+.siws-nav svg{width:16px;height:16px;flex:none}
+body>header{padding:10px clamp(12px,2.3vw,32px);column-gap:14px;row-gap:8px}
+body>header>.siws-nav{order:1;margin-inline:auto}
+body>header>:is(.hoon-account,#session-bar,#viewer){order:2;width:auto;margin-left:0}
+@media(max-width:1270px){body>header>.siws-nav{order:3;flex-basis:100%;justify-content:flex-start;border-top:1px solid #e6edf1;padding-top:5px}}
+@media(max-width:640px){.siws-nav,body>header>.siws-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.siws-nav a{min-height:40px;padding-inline:3px;gap:4px;font-size:12px}.siws-nav svg{width:14px;height:14px}}
+body>header{gap:8px}body:not(.equipment-mode)>main{height:auto;min-height:max(560px,calc(100dvh - 126px))}
+
+
+/* Fixed, single-row SIWS header. */
+body{padding-top:72px}
+body>header{position:fixed;inset:0 0 auto;z-index:2000;box-sizing:border-box;display:grid;grid-template-columns:minmax(200px,1fr) auto minmax(200px,1fr);grid-template-rows:72px;align-items:center;height:72px;min-height:72px;padding:0 24px;gap:0 16px;background:#fff;color:#18374c;border-bottom:1px solid #dce5ed}
+body>header>:first-child{grid-column:1;grid-row:1;min-width:0;margin:0}
+body>header>:is(.hoon-account,#session-bar,#viewer){grid-column:3;grid-row:1;justify-self:end;order:0;width:auto;margin:0;flex-wrap:nowrap}
+body>header>.siws-nav{grid-column:2;grid-row:1;order:0;position:static;inset:auto;display:flex;align-items:center;justify-content:center;flex-basis:auto;width:auto;height:72px;margin:0;padding:0;border:0;background:transparent;--nav-text:#42596c;--nav-current:#00616f;--nav-selected:#e7f2f3;--nav-hover:#f0f5f7}
+body>header>.siws-nav a{min-height:38px;padding:6px 10px;font-size:13px}
+body>header .hoon-lockup{display:inline-flex;align-items:center;gap:10px;color:#18374c;white-space:nowrap}
+body>header .hoon-word{display:inline-flex;align-items:center;gap:0}
+body>header .hoon-word img{width:36px;height:36px;object-fit:contain}
+body>header .hoon-word b{font:italic 700 41px/.86 "Snell Roundhand","Apple Chancery","Brush Script MT",cursive;letter-spacing:-.05em;padding:0 3px 4px 0}
+body>header .hoon-industry{display:inline-block;font:750 10px/1.4 system-ui;letter-spacing:.11em;padding-left:10px;border-left:1px solid #9eb2c0}
+body>header .erp-product,body>header .erp-help-links{display:none}
+body>header .brand{color:inherit;text-decoration:none}
+@media(max-width:900px){
+ body>header{grid-template-columns:auto minmax(0,1fr) auto;padding:0 10px;column-gap:6px}
+ body>header>.siws-nav{justify-content:center;overflow-x:auto;min-width:0}
+ body>header>.siws-nav a{padding:6px;font-size:11px;gap:3px;flex-shrink:0}
+ body>header>.siws-nav svg{display:none}
+ body>header .hoon-word img{width:25px;height:25px}
+ body>header .hoon-word b{font-size:29px}
+ body>header .hoon-industry{font-size:7px;letter-spacing:0;padding-left:4px}
+ body>header .hoon-lockup{gap:4px}
+ body>header>:is(.hoon-account,#session-bar,#viewer){font-size:11px;max-width:140px}
+}
+@media(max-width:560px){body>header .hoon-industry{max-width:46px;white-space:normal}body>header>.siws-nav{justify-content:flex-start}body>header>.siws-nav a{padding-inline:5px}}
 </style>
 </head>
 <body>
@@ -57,26 +248,112 @@ header{background:#fff;color:#18374c;border-bottom:1px solid #dce5ed;flex-wrap:w
     <feColorMatrix type="matrix" values=".973 0 0 0 .027  0 .639 0 0 .361  0 0 .596 0 .404  0 0 0 1 0"/>
   </filter>
 </svg>
-<header><span class="hoon-lockup" role="img" aria-label="Hoon Heavy Industries"><span class="hoon-word" aria-hidden="true"><img src="/shipyard-icon.png" alt="" width="42" height="42"><b>oon</b></span><span class="hoon-industry" aria-hidden="true">HEAVY INDUSTRIES</span></span><div class="hoon-account"><span id="map-account"></span><a href="/">SIWS 업무 홈</a><button id="map-logout" type="button" hidden>로그아웃</button></div></header>
+<header><span class="hoon-lockup" role="img" aria-label="Hoon Heavy Industries"><span class="hoon-word" aria-hidden="true"><img src="/shipyard-icon.png" alt="" width="42" height="42"><b>oon</b></span><span class="hoon-industry" aria-hidden="true">HEAVY INDUSTRIES</span></span><div class="hoon-account">
+  <details id="map-profile" hidden>
+    <summary class="map-profile-toggle"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3"/><path d="M5 20v-2a7 7 0 0 1 14 0v2"/></svg><span id="map-account"></span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m7 10 5 5 5-5"/></svg></summary>
+    <div class="map-profile-panel">
+      <p id="map-profile-info"></p>
+      <button id="map-logout" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5m4-12 4 4-4 4m-5-4h9"/></svg>로그아웃</button>
+    </div>
+  </details></div>
+<nav class="siws-nav" aria-label="SIWS 화면 이동">
+  <a href="/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-8 9 8M5 10v10h14V10m-10 10v-6h6v6"/></svg><span>포털 홈</span></a>
+  <a href="/control"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 15v-4m4 4V7m4 8v-6"/></svg><span>생산 관제</span></a>
+  <a href="/erp/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8m-8 6h8"/></svg><span>생산관리 ERP</span></a>
+  <a href="/twin/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3zm0 9 8-4.5M12 12 4 7.5M12 12v9"/></svg><span>디지털 트윈</span></a>
+</nav>
+</header>
+<div class="monitor-heading" id="monitor-heading" hidden>
+  <h1>장비 모니터링</h1>
+  <div class="monitor-tabs" aria-label="장비 유형">
+    <button type="button" data-kind="crane" aria-pressed="true">크레인</button>
+    <button type="button" data-kind="heavy" aria-pressed="false">중장비</button>
+    <button type="button" data-kind="vehicle" aria-pressed="false">차량</button>
+  </div>
+</div>
 <main aria-label="조선소 지도">
-  <section class="map-area" aria-label="조선소 배치 지도">
+  <div>
+  <section class="map-area base-plan" id="map-area" aria-label="조선소 배치 지도">
     <div id="map"></div>
-    <div class="map-tools"><button id="fit">전체 보기</button><button id="satellite" hidden aria-pressed="false">위성 영상</button></div>
+    <div class="map-tools">
+      <div class="segmented glass" id="base-toggle" role="group" aria-label="지도 표시" hidden>
+        <button type="button" data-base="plan" aria-pressed="true">배치도</button>
+        <button type="button" data-base="photo" aria-pressed="false">위성</button>
+      </div>
+      <button type="button" id="fit" class="glass">전체 보기</button>
+    </div>
+    <div class="legend glass" id="legend" aria-label="범례"></div>
+    <div class="monitor-legend glass" id="monitor-legend" aria-label="장비 표시" hidden>
+      <span><i style="background:#e9a238"></i>선택 장비</span>
+      <span><i style="background:#0b6b74"></i>관측 장비</span>
+      <span><i style="background:#6d8392"></i>ERP 등록 · 관측 미연결</span>
+    </div>
   </section>
-  <aside>
-    <h2>시설과 선체</h2>
-    <p class="muted" id="summary">시설 정보를 불러오는 중입니다.</p>
-    <div class="filters" id="filters" aria-label="시설 유형"></div>
-    <div id="details" aria-live="polite"><p class="muted">지도나 목록에서 시설을 선택하면 용도를 볼 수 있습니다.</p></div>
+  <section class="monitor-log" id="monitor-log" hidden aria-label="장비 관측 로그">
+    <div class="monitor-label">
+      <h2>실시간 수신 로그</h2>
+      <span id="signal" role="status">○ 수집 상태 확인 중</span>
+      <button type="button" id="collection-toggle" hidden>수집 시작</button>
+    </div>
+    <p id="collection-message" class="muted" role="status"></p>
+    <table><thead><tr><th scope="col">시각</th><th scope="col">장비</th><th scope="col">상태</th><th scope="col">관측값</th></tr></thead><tbody id="asset-log"></tbody></table>
+  </section>
+  </div>
+  <aside id="asset-panel" hidden>
+    <h2 id="asset-title">선택 장비</h2>
+    <p class="muted" id="asset-subtitle"></p>
+    <div id="asset-list" role="group" aria-label="장비 선택"></div>
+    <div class="viewer" id="viewer" tabindex="0" role="img" aria-label="장비 3D 모델. 좌우로 끌거나 화살표 키로 돌려 볼 수 있습니다.">
+      <span class="viewer-badge">360°</span>
+      <span class="viewer-angle" id="viewer-angle">0°</span>
+      <div class="viewer-hint"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 11V6.5a1.5 1.5 0 0 1 3 0V11"/><path d="M10 10.5V5a1.5 1.5 0 0 1 3 0v5.5"/><path d="M13 10.5V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M16 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-4.6-2.2L4 15.2a1.6 1.6 0 0 1 2.4-2.1L7 14"/></svg>좌우로 드래그해서 돌려 보세요</div>
+      <div class="viewer-foot"><strong id="viewer-model">3D 모델</strong><button type="button" id="viewer-reset">정면</button></div>
+      <p class="viewer-status" id="viewer-status">3D 모델을 준비하고 있습니다.</p>
+    </div>
+    <div class="viewer-dial" id="viewer-dial" aria-hidden="true"><span></span></div>
+    <div class="spec-chips" id="spec-chips"></div>
+    <dl id="asset-facts"></dl>
+    <section class="sensor-panel" aria-labelledby="sensor-title">
+      <div class="sensor-heading"><h3 id="sensor-title">센서 그래프</h3><span>최근 10분 · 모의 계측</span></div>
+      <p class="muted" id="sensor-status" role="status"></p>
+      <div id="asset-graph"></div>
+      <div id="sensor-controls" hidden>
+        <label for="sensor-time">관측 시각 (KST)</label>
+        <input id="sensor-time" type="range" min="0" value="0" aria-describedby="sensor-readout">
+        <p id="sensor-readout"></p>
+        <p class="muted" id="sensor-plan"></p>
+        <button id="sensor-latest" type="button" hidden>최신 위치로 돌아가기</button>
+      </div>
+    </section>
+  </aside>
+  <aside id="facility-panel">
+    <div class="panel-title"><h2>조선소 배치</h2><span class="muted" id="site-name"></span></div>
+    <div class="stats" id="stats"></div>
+    <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search" type="search" placeholder="시설·호선 검색" aria-label="시설과 호선 검색"></label>
+    <p class="label-sm">구역</p>
+    <div class="chip-row" id="zones" role="group" aria-label="구역"></div>
+    <p class="label-sm">유형</p>
+    <div class="chip-row" id="filters" role="group" aria-label="시설 유형"></div>
+    <div id="details" aria-live="polite"><p class="muted">지도나 목록에서 시설을 선택하면 용도와 배치를 볼 수 있습니다.</p></div>
     <div id="list"></div>
     <p class="muted" id="status" role="status"></p>
   </aside>
 </main>
 <script>
-const KIND_COLORS = {'도크':'#63c8f2','안벽':'#c2abfa','작업장':'#ffd17b','야드':'#68dec3','창고':'#f4acd8','선체':'#ff937d'};
+// Map colours follow what each kind looks like from above (roof, dock floor, concrete, asphalt, deck).
+const KINDS = {
+  '도크':{color:'#58798c'},
+  '안벽':{color:'#b7ab90'},
+  '작업장':{color:'#8fa9bf'},
+  '창고':{color:'#5f9f92'},
+  '야드':{color:'#8c918d'},
+  '선체':{color:'#b4513a'},
+};
+const ZONES = {MAIN:'본 야드', FLEET:'남측 1라인', 'DEMO-A':'남측 2라인', 'DEMO-B':'남측 3라인'};
+const MAIN_PREFIXES = new Set(['GY','DT','DTW']);
+const DISPLAY_NAMES = {'DT-DOCK':'1도크'};
 const SITE = {lat:34.833114, lon:128.59749, x_axis_bearing_deg:235};
 const R = 6378137;
-const ALIASES = {'DTW-FAB':'GY-ASSY2','DTW-OUT':'GY-OUTFIT','DTW-YARD':'GY-PE2','DTW-DOCK':'GY-DOCK2'};
 const PURPOSE = {
   'GY-FAB':'후판을 절단하고 가공해 블록 조립에 필요한 부재를 만듭니다.',
   'GY-ASSY1':'가공한 부재를 용접해 선체 블록을 조립합니다.',
@@ -97,231 +374,661 @@ const PURPOSE_BY_KIND = {
   '야드':'블록이나 자재를 다음 공정에 투입하기 전까지 적치합니다.',
   '창고':'생산 자재를 보관하고 출고합니다.'
 };
-// Facility geometry from ShipyardTwin/data/yard.jsonl.
-const TWIN_LAYOUT = [
-  {"location": "DT-DOCK", "x": 430, "y": 170, "z": 0, "heading_deg": 0, "size_x_m": 370, "size_y_m": 100, "size_z_m": 0, "name": "1도크", "kind": "도크"},
-  {"location": "GY-DOCK2", "x": 430, "y": 10, "z": 0, "heading_deg": 0, "size_x_m": 370, "size_y_m": 100, "size_z_m": 0, "name": "2도크", "kind": "도크"},
-  {"location": "GY-PIER", "x": 935, "y": -150, "z": 0, "heading_deg": 0, "size_x_m": 640, "size_y_m": 40, "size_z_m": 0, "name": "의장 피어", "kind": "안벽"},
-  {"location": "GY-FAB", "x": 40, "y": 400, "z": 0, "heading_deg": 0, "size_x_m": 170, "size_y_m": 70, "size_z_m": 22, "name": "강재 가공공장", "kind": "작업장"},
-  {"location": "GY-ASSY1", "x": 40, "y": 300, "z": 0, "heading_deg": 0, "size_x_m": 170, "size_y_m": 80, "size_z_m": 30, "name": "블록 조립 1공장", "kind": "작업장"},
-  {"location": "GY-ASSY2", "x": 40, "y": 190, "z": 0, "heading_deg": 0, "size_x_m": 170, "size_y_m": 80, "size_z_m": 30, "name": "블록 조립 2공장", "kind": "작업장"},
-  {"location": "GY-OUTFIT", "x": 40, "y": 80, "z": 0, "heading_deg": 0, "size_x_m": 170, "size_y_m": 70, "size_z_m": 24, "name": "선행의장 공장", "kind": "작업장"},
-  {"location": "GY-PAINT", "x": 40, "y": -30, "z": 0, "heading_deg": 0, "size_x_m": 150, "size_y_m": 70, "size_z_m": 26, "name": "도장 공장", "kind": "작업장"},
-  {"location": "GY-PE1", "x": 197.5, "y": 170, "z": 0, "heading_deg": 0, "size_x_m": 95, "size_y_m": 100, "size_z_m": 0, "name": "1 PE장", "kind": "야드"},
-  {"location": "GY-PE2", "x": 197.5, "y": 10, "z": 0, "heading_deg": 0, "size_x_m": 95, "size_y_m": 100, "size_z_m": 0, "name": "2 PE장", "kind": "야드"},
-  {"location": "GY-QOUTFIT", "x": 470, "y": -150, "z": 0, "heading_deg": 0, "size_x_m": 120, "size_y_m": 60, "size_z_m": 18, "name": "안벽 의장공장", "kind": "작업장"},
-  {"location": "GY-QSTOCK", "x": 300, "y": -150, "z": 0, "heading_deg": 0, "size_x_m": 160, "size_y_m": 60, "size_z_m": 0, "name": "의장 자재 적치장", "kind": "야드"},
-  {"location": "GY-STOCK", "x": -115, "y": -60, "z": 0, "heading_deg": 0, "size_x_m": 70, "size_y_m": 160, "size_z_m": 0, "name": "블록 적치장", "kind": "야드"},
-  {"location": "GY-STORE", "x": -110, "y": 190, "z": 0, "heading_deg": 0, "size_x_m": 60, "size_y_m": 200, "size_z_m": 14, "name": "자재 창고", "kind": "창고"}
-];
+
 let site = SITE;
 function yardToGeo(x, y) {
   const b = site.x_axis_bearing_deg * Math.PI / 180;
   const east = x * Math.sin(b) - y * Math.cos(b), north = x * Math.cos(b) + y * Math.sin(b);
   return [site.lat + north / R * 180 / Math.PI, site.lon + east / (R * Math.cos(site.lat * Math.PI / 180)) * 180 / Math.PI];
 }
-function rectangle(cx, cy, sx, sy, headingDeg) {
-  const a = headingDeg * Math.PI / 180;
-  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => {
-    const dx = u * sx / 2, dy = v * sy / 2;
-    return yardToGeo(cx + dx * Math.cos(a) - dy * Math.sin(a), cy + dx * Math.sin(a) + dy * Math.cos(a));
-  });
+// A point given in a facility's own axes (x along its heading), in yard metres.
+function local(f, dx, dy) {
+  const a = (f.heading_deg || 0) * Math.PI / 180;
+  return [f.x + dx * Math.cos(a) - dy * Math.sin(a), f.y + dx * Math.sin(a) + dy * Math.cos(a)];
+}
+function corners(f, margin = 0) {
+  const hx = f.size_x_m / 2 + margin, hy = f.size_y_m / 2 + margin;
+  return [[-hx,-hy],[hx,-hy],[hx,hy],[-hx,hy]].map(([u,v]) => local(f,u,v));
+}
+function convexHull(points) {
+  const p = [...points].sort((a,b) => a[0]-b[0] || a[1]-b[1]);
+  const cross = (o,a,b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+  const half = list => list.reduce((h,q) => { while (h.length > 1 && cross(h[h.length-2],h[h.length-1],q) <= 0) h.pop(); h.push(q); return h; }, []);
+  const lower = half(p), upper = half(p.reverse());
+  return lower.slice(0,-1).concat(upper.slice(0,-1));
 }
 
-
 const $ = id => document.getElementById(id);
-const map = L.map('map', {maxZoom:20}).setView([SITE.lat,SITE.lon],17);
-L.control.scale({imperial:false}).addTo(map);
-const shapes = L.layerGroup().addTo(map);
-map.createPane('yardSurface');
-const surfacePane = map.getPane('yardSurface');
-surfacePane.style.zIndex = '425';
-surfacePane.style.pointerEvents = 'none';
-const surface = L.layerGroup().addTo(map);
-map.createPane('facilities');
-map.getPane('facilities').style.zIndex = '450';
-let items = [], visible = [], selected = null, filter = '', satellite = null;
+const map = L.map('map', {maxZoom:20, zoomSnap:.25, zoomControl:false}).setView([SITE.lat,SITE.lon],16);
+L.control.zoom({position:'bottomright'}).addTo(map);
+L.control.scale({imperial:false, position:'bottomright'}).addTo(map);
+for (const [name, z] of [['imagery',300],['site',410],['facilities',450],['ships',460],['equipment',470]]) map.createPane(name).style.zIndex = z;
+map.getPane('equipment').style.pointerEvents = 'none';
+map.getPane('site').style.pointerEvents = 'none';
+const siteLayer = L.layerGroup().addTo(map), shapes = L.layerGroup().addTo(map), zoneLabels = L.layerGroup().addTo(map);
+let items = [], selected = null, kindFilter = '', zoneFilter = '', query = '';
 const shapeById = new Map();
 const token = (() => { try { return sessionStorage.getItem('shipyard-token'); } catch { return null; } })();
+
+function syncZoomClass() {
+  const zoom = map.getZoom(), near = zoom >= 16.75;
+  $('map-area').classList.toggle('zoom-near', near);
+  $('map-area').classList.toggle('zoom-far', !near);
+  $('map-area').classList.toggle('zoom-mid', near && zoom < 17.75);
+}
+map.on('zoomend', syncZoomClass);
+syncZoomClass();
 
 async function api(route) {
   const response = await fetch('/api/' + route, {headers: token ? {Authorization:'Bearer ' + token} : {}});
   if (!response.ok) throw new Error(response.status === 401 ? 'SIWS에 로그인한 뒤 지도를 다시 열어 주세요.' : 'ERP 지도 데이터를 불러오지 못했습니다.');
   return response.json();
 }
+const optional = route => api(route).catch(() => []);
 
-function node(tag, text) {
+function node(tag, text = '', className = '') {
   const element = document.createElement(tag);
   element.textContent = text;
+  if (className) element.className = className;
   return element;
+}
+function dot(color) {
+  const element = node('span', '', 'swatch');
+  element.style.background = color;
+  return element;
+}
+
+function zoneOf(id) {
+  const cut = id.lastIndexOf('-');
+  const prefix = cut > 0 ? id.slice(0, cut) : id;
+  return MAIN_PREFIXES.has(prefix) || !ZONES[prefix] && MAIN_PREFIXES.has(prefix.split('-')[0]) ? 'MAIN' : prefix;
+}
+const zoneName = zone => ZONES[zone] || zone;
+const area = f => Math.round(f.size_x_m * f.size_y_m).toLocaleString('ko-KR');
+
+// ERP aliases of one building (same kind, centre, size and heading) collapse to one, preferring a name
+// without "트윈", then the lowest ID, as the digital twin does.
+function distinctFootprints(rows) {
+  const groups = new Map(), alias = new Map();
+  for (const f of rows) {
+    if (!(f.size_x_m > 0 && f.size_y_m > 0) || !Number.isFinite(f.x) || !Number.isFinite(f.y)) continue;
+    const key = [f.kind, f.x, f.y, f.size_x_m, f.size_y_m, f.heading_deg || 0].map(v => typeof v === 'number' ? v.toFixed(1) : v).join('|');
+    (groups.get(key) || groups.set(key, []).get(key)).push(f);
+  }
+  const kept = [];
+  for (const group of groups.values()) {
+    group.sort((a,b) => (a.name.includes('트윈') - b.name.includes('트윈')) || a.location.localeCompare(b.location));
+    kept.push(group[0]);
+    for (const other of group.slice(1)) alias.set(other.location, group[0].location);
+  }
+  return {facilities: kept, alias};
+}
+
+// The hull in each dock on a day: the booking covering it, else the next to start, else the last to end.
+function dockOccupants(bookings, canonical, day) {
+  const byDock = new Map();
+  for (const b of bookings) {
+    if (!b.dock || !b.hull || !b.start_day || !b.end_day) continue;
+    const dock = canonical(b.dock);
+    (byDock.get(dock) || byDock.set(dock, []).get(dock)).push(b);
+  }
+  const result = new Map();
+  for (const [dock, list] of byDock) {
+    const current = list.find(b => b.start_day <= day && day <= b.end_day);
+    const next = list.filter(b => b.start_day > day).sort((a,b) => a.start_day.localeCompare(b.start_day))[0];
+    const last = [...list].sort((a,b) => b.end_day.localeCompare(a.end_day))[0];
+    result.set(dock, (current || next || last).hull);
+  }
+  return result;
+}
+
+function facilityItem(f, equipment, hulls) {
+  return {id:f.location, raw:f, name:DISPLAY_NAMES[f.location] || f.name, kind:f.kind, zone:zoneOf(f.location),
+    points:corners(f).map(([x,y]) => yardToGeo(x,y)), centre:yardToGeo(f.x,f.y),
+    description:PURPOSE[f.location] || PURPOSE_BY_KIND[f.kind] || '조선소 시설입니다.',
+    facts:[['시설 ID', f.location], ['크기', `${f.size_x_m} × ${f.size_y_m} m · ${area(f)} m²`],
+      ...(equipment.length ? [['배치 장비', equipment.map(e => `${e.equipment_type} ${e.capacity_t} t (${e.equipment})`).join(', ')]] : []),
+      ...(hulls.length ? [['입거 호선', hulls.join(', ')]] : [])]};
+}
+
+// Hull plan shape: transom stern (u = 0), parallel midbody, fine bow (u = 1); half-width as a share of the beam.
+function hullHalfWidth(u) {
+  if (u < .08) return .38 + .12 * Math.sin(u / .08 * Math.PI / 2);
+  if (u < .68) return .5;
+  return .5 * Math.pow(Math.cos((u - .68) / .32 * Math.PI / 2), .7);
+}
+function hullOutline(scale = 1, from = 0, to = 1) {
+  const us = Array.from({length: 25}, (_, i) => from + (to - from) * i / 24);
+  return [...us.map(u => [u, -hullHalfWidth(u) * scale]), ...us.reverse().map(u => [u, hullHalfWidth(u) * scale])];
+}
+const vesselStyle = type => /LNG/.test(type) ? 'lng' : /VLGC|LPG/.test(type) ? 'gas' : /컨테이너/.test(type) ? 'container'
+  : /원유|탱커|석유/.test(type) ? 'tanker' : 'cargo';
+
+function shipItem(placement, vessel, dock) {
+  const {origin_x:x,origin_y:y,heading_deg:heading,hull} = placement;
+  const {length_m:length,beam_m:beam} = vessel;
+  const a = heading * Math.PI / 180;
+  // (u, v): share of length from the stern, share of beam across.
+  const at = (u, v) => yardToGeo(x + u*length*Math.cos(a) - v*beam*Math.sin(a), y + u*length*Math.sin(a) + v*beam*Math.cos(a));
+  return {id:'hull-'+hull, name:`${hull} · ${vessel.vessel_name || vessel.vessel_type}`, label:hull, kind:'선체',
+    zone:dock ? zoneOf(dock.location) : 'MAIN', points:hullOutline().map(([u,v]) => at(u,v)), centre:at(.5, 0),
+    ship:{at, length, beam, style:vesselStyle(vessel.vessel_type || ''), seed:hull},
+    description:`${vessel.vessel_type || '선박'} · ${dock ? (DISPLAY_NAMES[dock.location] || dock.name) : '배치 시설 미등록'}`,
+    facts:[['전장 · 선폭', `${length} m · ${beam} m`], ['발주처', vessel.customer || '-'], ['인도 예정', vessel.delivery || '-']]};
+}
+
+// ------------------------------------------------------------------ yard drawing (top-down, as seen from above)
+
+function seeded(text) {
+  let h = 2166136261;
+  for (const c of text) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return () => {
+    h = h + 0x6D2B79F5 | 0;
+    let t = Math.imul(h ^ h >>> 15, h | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function shade(hex, amount) {
+  const n = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(c + (amount > 0 ? 255 - c : c) * amount)));
+  return '#' + [n >> 16, n >> 8 & 255, n & 255].map(f).map(c => c.toString(16).padStart(2, '0')).join('');
+}
+// Sun from the south-south-east: shadows fall north-north-west, about 0.4 × height long.
+function shadowed(points, height) {
+  const north = height * .38, east = -height * .16;
+  return points.map(([lat, lon]) => [lat + north / R * 180 / Math.PI, lon + east / (R * Math.cos(lat * Math.PI / 180)) * 180 / Math.PI]);
+}
+// Rectangle in a facility's own axes, u along x, v along y (metres from its centre).
+const rect = (f, u0, v0, u1, v1) => [[u0,v0],[u1,v0],[u1,v1],[u0,v1]].map(([u,v]) => yardToGeo(...local(f, u, v)));
+const line = (f, ...uv) => uv.map(([u,v]) => yardToGeo(...local(f, u, v)));
+
+function drawItem(item) {
+  const f = item.raw, pane = item.kind === '선체' ? 'ships' : 'facilities';
+  const deco = (points, style) => L.polygon(points, {pane, interactive:false, stroke:false, fillOpacity:1, ...style}).addTo(shapes);
+  const stroke = (points, style) => L.polyline(points, {pane, interactive:false, weight:1, ...style}).addTo(shapes);
+  const base = (points, fill, edge, style = {}) => L.polygon(points, {pane, color:edge, weight:1, fillColor:fill, fillOpacity:1,
+    className:'facility', ...style}).addTo(shapes);
+  if (item.kind === '선체') return drawShip(item, deco, stroke, base);
+  const hx = f.size_x_m / 2, hy = f.size_y_m / 2;
+  if (item.kind === '작업장' || item.kind === '창고') {
+    const roof = KINDS[item.kind].color, height = item.kind === '작업장' ? 20 : 14;
+    deco(shadowed(item.points, height), {fillColor:'#1c2b36', fillOpacity:.3});
+    const shape = base(item.points, roof, shade(roof, -.35));
+    // Gable roof: the ridge runs along the long side; the sunlit half is lighter.
+    const alongX = f.size_x_m >= f.size_y_m;
+    const half = (sign) => alongX ? rect(f, -hx, 0, hx, sign * hy) : rect(f, 0, -hy, sign * hx, hy);
+    deco(half(-1), {fillColor:shade(roof, .16)});
+    deco(half(1), {fillColor:shade(roof, -.08)});
+    const ridge = alongX ? line(f, [-hx, 0], [hx, 0]) : line(f, [0, -hy], [0, hy]);
+    stroke(ridge, {color:shade(roof, .5), weight:1.5});
+    // Skylight strips on each roof half, and roof vents.
+    for (const sign of [-1, 1]) {
+      const strip = alongX ? rect(f, -hx + 5, sign * hy * .45, hx - 5, sign * hy * .45 + sign * 2.2)
+        : rect(f, sign * hx * .45, -hy + 5, sign * hx * .45 + sign * 2.2, hy - 5);
+      deco(strip, {fillColor:'#eef4f7', fillOpacity:.55, className:'fine'});
+    }
+    const along = alongX ? hx : hy, vents = Math.max(2, Math.floor(along * 2 / 28));
+    for (let i = 0; i < vents; i++) {
+      const t = -along + (i + .5) * along * 2 / vents;
+      deco(alongX ? rect(f, t - 1.6, -1.6, t + 1.6, 1.6) : rect(f, -1.6, t - 1.6, 1.6, t + 1.6), {fillColor:shade(roof, -.4), className:'finest'});
+    }
+    return shape;
+  }
+  if (item.kind === '도크') {
+    const shape = base(item.points, '#bdb8ad', '#8a857a');
+    // Dock gate at the end that opens to the water (the twin's imagery), else the +x end.
+    const ends = [1, -1].map(sign => ({sign, water: waterAt(yardToGeo(...local(f, sign * (hx + 30), 0)))}));
+    const sea = ends.some(e => e.water !== null) ? ends.sort((p, q) => (q.water ?? 0) - (p.water ?? 0))[0].sign : 1;
+    shape.labelAt = yardToGeo(...local(f, -sea * (hx - 22), 0));
+    deco(rect(f, -hx + 5, -hy + 5, hx - 5, hy - 5), {fillColor:'#6b7880'});
+    deco(rect(f, -hx + 5, -hy + 5, hx - 5, -hy + 8), {fillColor:'#4d5960', className:'fine'});
+    deco(rect(f, sea * (hx - 1), -hy + 2, sea * (hx - 7), hy - 2), {fillColor:'#2e3a43'});
+    stroke(line(f, [-hx + 12, 0], [hx - 12, 0]), {color:'#8f9aa1', weight:1, dashArray:'3 5', className:'fine'});
+    for (const v of [-hy - 3, hy + 3]) stroke(line(f, [-hx, v], [hx, v]), {color:'#4a5157', weight:1.6, className:'fine'});
+    return shape;
+  }
+  if (item.kind === '안벽') {
+    const shape = base(item.points, '#cfc7b6', '#6f6a5f');
+    const long = Math.max(hx, hy), alongX = hx >= hy, w = Math.min(hx, hy);
+    const uv = (t, s) => alongX ? [t, s] : [s, t];
+    for (const s of [-w + .6, w - .6]) stroke(line(f, uv(-long, s), uv(long, s)), {color:'#2f3439', weight:2});
+    stroke(line(f, uv(-long + 4, 0), uv(long - 4, 0)), {color:'#e2b23c', weight:1.2, dashArray:'8 6', className:'fine'});
+    // Level-luffing quay cranes along the berth edge.
+    for (let t = -long + 40; t < long - 20; t += 120) {
+      const [cu, cv] = uv(t, -w * .45);
+      deco(rect(f, cu - 4, cv - 4, cu + 4, cv + 4), {fillColor:'#f0bf2c', className:'fine'});
+      stroke(line(f, [cu, cv], uv(t + 26, -w * .45 - (alongX ? 18 : -18))), {color:'#d9a21e', weight:2, className:'fine'});
+    }
+    return shape;
+  }
+  // 야드: asphalt with painted bays and the blocks stored on it.
+  const shape = base(item.points, '#9a9d99', '#f4f4f2', {weight:1.2, dashArray:'5 4'});
+  const random = seeded(f.location), colours = ['#b55c43', '#9aa3a8', '#6e8d6b', '#c88a42', '#848c93', '#b55c43'];
+  const bw = 15, bh = 11, gap = 5;
+  for (let u = -hx + 6; u + bw <= hx - 6; u += bw + gap) {
+    for (let v = -hy + 6; v + bh <= hy - 6; v += bh + gap) {
+      if (random() < .28) continue;
+      const block = rect(f, u, v, u + bw, v + bh);
+      deco(shadowed(block, 6), {fillColor:'#1c2b36', fillOpacity:.22, className:'fine'});
+      deco(block, {fillColor:colours[Math.floor(random() * colours.length)], stroke:true, color:'#3a3a36', weight:.6, opacity:.5});
+    }
+  }
+  return shape;
+}
+
+function drawShip(item, deco, stroke, base) {
+  const {at, length, beam, style, seed} = item.ship;
+  const poly = list => list.map(([u, v]) => at(u, v));
+  const box = (u0, u1, v0, v1) => poly([[u0,v0],[u1,v0],[u1,v1],[u0,v1]]);
+  const m = metres => metres / length, w = metres => metres / beam;
+  const shape = base(item.points, '#26323b', '#141c22');
+  const decks = {lng:'#8c4a3a', gas:'#6d8a72', container:'#6f777c', tanker:'#934c39', cargo:'#7d5d4b'};
+  deco(poly(hullOutline(.9, .012, .985)), {fillColor:decks[style]});
+  const random = seeded(seed);
+  const cargo0 = .2, cargo1 = .93;
+  if (style === 'lng' || style === 'gas') {
+    const tanks = 4, span = (cargo1 - cargo0) / tanks;
+    for (let i = 0; i < tanks; i++) {
+      const u0 = cargo0 + i * span + m(2), u1 = cargo0 + (i + 1) * span - m(2);
+      deco(box(u0, u1, -.3, .3), {fillColor:style === 'lng' ? '#e3e3dc' : '#c9ced0', stroke:true, color:'#8d8f8a', weight:.6});
+      if (style === 'gas') deco(box((u0 + u1) / 2 - m(4), (u0 + u1) / 2 + m(4), -w(4), w(4)), {fillColor:'#9aa1a4', className:'fine'});
+    }
+    stroke(poly([[cargo0, .36], [cargo1, .36]]), {color:'#d8cfbd', weight:1, className:'fine'});
+  } else if (style === 'container') {
+    const colours = ['#b33a2e', '#2f6fa3', '#e8e9e6', '#d08a2b', '#2f7d4f', '#7b8389', '#b33a2e', '#2f6fa3'];
+    const bay = m(12.2), gap = m(1.6), rows = Math.max(4, Math.round(beam / 5));
+    for (let u = cargo0; u + bay <= cargo1 - m(4); u += bay + gap) {
+      const half = Math.min(hullHalfWidth(u), hullHalfWidth(u + bay)) * .86;
+      for (let r = 0; r < rows; r++) {
+        if (random() < .08) continue;
+        const v0 = -half + r * 2 * half / rows, v1 = v0 + 2 * half / rows - w(.3);
+        deco(box(u, u + bay, v0, v1), {fillColor:colours[Math.floor(random() * colours.length)]});
+      }
+    }
+  } else if (style === 'tanker') {
+    stroke(poly([[.16, 0], [.95, 0]]), {color:'#e6dccb', weight:2});
+    stroke(poly([[.52, -.42], [.52, .42]]), {color:'#e6dccb', weight:2, className:'fine'});
+    for (let u = .22; u < .92; u += .1) stroke(poly([[u, -.08], [u, .08]]), {color:'#cfc6b4', weight:1, className:'finest'});
+  } else {
+    const hatches = Math.max(3, Math.round(length / 28)), span = (cargo1 - cargo0) / hatches;
+    for (let i = 0; i < hatches; i++) {
+      deco(box(cargo0 + i * span + m(2), cargo0 + (i + 1) * span - m(2), -.33, .33), {fillColor:i % 2 ? '#47657e' : '#506f88', stroke:true, color:'#2d4152', weight:.6});
+    }
+    for (let i = 1; i < hatches; i += 2) deco(box(cargo0 + i * span - m(2), cargo0 + i * span + m(2), -w(2), w(2)), {fillColor:'#e0b23a', className:'fine'});
+  }
+  // Superstructure aft (container ships of 300 m and more carry it forward) with its funnel behind.
+  const bridge = style === 'container' && length >= 300 ? .6 : .055;
+  const house = box(bridge, bridge + m(Math.max(12, length * .045)), -.4, .4);
+  deco(shadowed(house, 26), {fillColor:'#10202c', fillOpacity:.35});
+  deco(house, {fillColor:'#f3f2ed', stroke:true, color:'#a6a49c', weight:.8});
+  deco(box(bridge + m(2), bridge + m(Math.max(12, length * .045)) - m(2), -.4, -.36), {fillColor:'#3c4c58', className:'fine'});
+  const funnel = bridge === .055 ? box(.03, .03 + m(6), -w(3.5), w(3.5)) : box(.07, .07 + m(6), -w(3.5), w(3.5));
+  deco(funnel, {fillColor:'#c63d2f', stroke:true, color:'#20272c', weight:.8});
+  return shape;
+}
+
+function matches(item) {
+  if (kindFilter && item.kind !== kindFilter) return false;
+  if (zoneFilter && item.zone !== zoneFilter) return false;
+  if (query && !(item.name + ' ' + item.id).toLowerCase().includes(query)) return false;
+  return true;
 }
 
 function select(item, focusMap = false) {
   selected = item;
-  for (const entry of visible) {
-    const active = entry === item;
-    shapeById.get(entry.id).setStyle({weight:active ? 4 : 2, fillOpacity:active ? .78 : .45});
-    entry.button.setAttribute('aria-pressed', String(active));
+  for (const entry of items) {
+    entry.shape?.getElement()?.classList.toggle('is-selected', entry === item);
+    entry.button?.setAttribute('aria-pressed', String(entry === item));
   }
   const details = $('details');
-  details.replaceChildren(node('strong',item.name), node('p',item.description));
-  if (item.dimensions) {
-    const size = node('p',item.dimensions);
-    size.className = 'muted';
-    details.append(size);
-  }
-  if (focusMap) map.panTo(shapeById.get(item.id).getBounds?.().getCenter() || shapeById.get(item.id).getLatLng());
+  const badge = node('span', item.kind, 'badge');
+  badge.prepend(dot(KINDS[item.kind]?.color || '#9fb3c2'));
+  const zone = node('span', zoneName(item.zone), 'badge');
+  const head = node('div');
+  head.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+  head.append(badge, zone);
+  const facts = node('dl', '', 'facts');
+  for (const [key, value] of item.facts) facts.append(node('dt', key), node('dd', value));
+  details.replaceChildren(head, node('h3', item.name), node('p', item.description, 'muted'), facts);
+  if (focusMap && item.shape) map.flyToBounds(item.shape.getBounds(), {padding:[80,80], maxZoom:18, duration:.6});
 }
 
 function render() {
   shapes.clearLayers();
   shapeById.clear();
-  $('list').replaceChildren();
-  visible = items.filter(item => !filter || item.kind === filter);
-  $('details').replaceChildren(node('p','지도나 목록에서 시설 또는 선체를 선택하세요.'));
-  for (const item of visible) {
-    const color = KIND_COLORS[item.kind] || '#bed2df';
-    const style = {pane:'facilities',color, weight:2, fillColor:color, fillOpacity:.45};
-    const shape = (item.points ? L.polygon(item.points,style) : L.circleMarker(item.center,{...style,radius:7})).addTo(shapes);
-    shape.bindTooltip(node('span',item.label || item.name),{permanent:true,direction:'center',className:'map-label'});
+  const list = $('list');
+  list.replaceChildren();
+  const shown = items.filter(matches);
+  for (const item of items) item.shape = item.button = null;
+  for (const item of shown) {
+    const style = KINDS[item.kind] || {color:'#9fb3c2'};
+    const shape = drawItem(item);
+    const label = node('span');
+    const swatch = node('i');
+    swatch.style.background = style.color;
+    label.append(swatch, node('span', item.label || item.name));
+    const tooltip = {permanent:true, direction:'center', className:'map-label', interactive:false, offset:item.kind === '선체' ? [0, 16] : [0, 0]};
+    // A dock's name sits at its head (landward end), clear of the hull in it.
+    if (shape.labelAt) L.tooltip(tooltip).setLatLng(shape.labelAt).setContent(label).addTo(shapes);
+    else shape.bindTooltip(label, tooltip);
     shape.on('click', () => select(item));
-    shapeById.set(item.id,shape);
-    const button = node('button','');
-    button.className = 'item';
-    button.setAttribute('aria-pressed','false');
-    const dot = node('span','');
-    dot.className = 'dot';
-    dot.style.background = color;
-    button.append(dot,node('span',item.name));
-    button.onclick = () => select(item,true);
-    item.button = button;
-    $('list').append(button);
+    item.shape = shape;
   }
-  if (visible.includes(selected)) select(selected);
-  else selected = null;
-}
-
-function fit() {
-  const points = visible.flatMap(item => item.points || [item.center]);
-  if (points.length) map.fitBounds(points,{padding:[28,28],maxZoom:18});
-}
-$('fit').onclick = fit;
-
-// The perimeter follows the Twin layout in yard metres. The fitting pier stays narrow
-// so the deck does not fill the water between the pier and the dry docks.
-const TWIN_APRON = [
-  [-165,-152], [210,-152], [210,-185], [1265,-185], [1265,-115],
-  [605,-115], [605,230], [145,230], [145,450], [-65,450],
-  [-65,310], [-165,310]
-];
-
-function drawYardSurface(layout, twinLayout) {
-  surface.clearLayers();
-  const options = {pane:'yardSurface', interactive:false};
-  const slab = (points, fillColor, color, weight = 1) =>
-    L.polygon(points, {...options, fillColor, fillOpacity:1, color, weight}).addTo(surface);
-
-  if (twinLayout) {
-    slab(TWIN_APRON.map(([x,y]) => yardToGeo(x,y)), '#c8c7bf', '#5c6970', 3);
-    // Concrete paving joints on the main production apron.
-    for (let x = -140; x <= 580; x += 32) {
-      const bottom = x >= 210 ? -181 : -149;
-      const top = x < -65 ? 307 : x < 145 ? 447 : 227;
-      L.polyline([yardToGeo(x,bottom),yardToGeo(x,top)],
-        {...options,color:'#777a77',weight:1,opacity:.24}).addTo(surface);
+  const groups = new Map();
+  for (const item of shown) (groups.get(item.zone) || groups.set(item.zone, []).get(item.zone)).push(item);
+  for (const [zone, members] of [...groups].sort((a,b) => a[0] === 'MAIN' ? -1 : b[0] === 'MAIN' ? 1 : a[0].localeCompare(b[0]))) {
+    const group = node('section', '', 'group');
+    const title = node('h4', zoneName(zone));
+    title.append(node('span', members.length + '곳'));
+    group.append(title);
+    for (const item of members.sort((a,b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name))) {
+      const button = node('button', '', 'item');
+      button.type = 'button';
+      button.setAttribute('aria-pressed', 'false');
+      button.append(dot(KINDS[item.kind]?.color || '#9fb3c2'), node('span', item.name), node('small', item.kind));
+      button.onclick = () => select(item, true);
+      item.button = button;
+      group.append(button);
     }
-    for (let y = -128; y <= 416; y += 32) {
-      const left = y > 310 ? -65 : -165;
-      const right = y < -115 ? 1265 : y <= 230 ? 605 : 145;
-      L.polyline([yardToGeo(left+3,y),yardToGeo(right-3,y)],
-        {...options,color:'#777a77',weight:1,opacity:.24}).addTo(surface);
-    }
+    list.append(group);
   }
-
-  for (const f of layout.values()) {
-    if (f.size_x_m <= 0 || f.size_y_m <= 0) continue;
-    const {x,y,size_x_m:width,size_y_m:depth,heading_deg:heading} = f;
-    if (f.kind === '도크' && width > 12 && depth > 12) {
-      slab(rectangle(x,y,width,depth,heading), '#d6d5cb', '#69747a', 2);
-      slab(rectangle(x,y,width-12,depth-12,heading), '#3d505b', '#a5a299', 2);
-    } else if (!twinLayout || f.kind === '안벽') {
-      slab(rectangle(x,y,width,depth,heading), '#c8c7bf', '#7c8586');
-    }
+  if (!shown.length) list.append(node('p', '조건에 맞는 시설이 없습니다.', 'muted'));
+  if (shown.includes(selected)) select(selected);
+  else {
+    selected = null;
+    $('details').replaceChildren(node('p', '지도나 목록에서 시설을 선택하면 용도와 배치를 볼 수 있습니다.', 'muted'));
   }
 }
 
-function facility(f) {
-  const sized = f.size_x_m > 0 && f.size_y_m > 0;
-  return {id:f.location, name:f.name, kind:f.kind,
-    points:sized ? rectangle(f.x,f.y,f.size_x_m,f.size_y_m,f.heading_deg) : null,
-    center:yardToGeo(f.x,f.y),
-    description:PURPOSE[f.location] || PURPOSE_BY_KIND[f.kind] || '조선소 시설입니다.',
-    dimensions:sized ? `${f.size_x_m} × ${f.size_y_m} m` : ''};
+function fit(subset = items.filter(matches)) {
+  const points = subset.flatMap(item => item.points);
+  if (points.length) map.flyToBounds(points, {padding:[40,40], maxZoom:18, duration:.6});
+}
+$('fit').onclick = () => fit();
+
+// Paved sites: facilities within 200 m of each other form one site, drawn as their hull grown by 18 m;
+// piers stay out of it so the water between a pier and the docks stays water.
+function siteClusters(facilities) {
+  const land = facilities.filter(f => f.kind !== '안벽');
+  const parent = land.map((_, i) => i);
+  const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  for (let i = 0; i < land.length; i++) for (let j = i + 1; j < land.length; j++) {
+    if (Math.hypot(land[i].x - land[j].x, land[i].y - land[j].y) < Math.max(land[i].size_x_m, land[j].size_x_m) / 2 + 200) parent[find(i)] = find(j);
+  }
+  const clusters = new Map();
+  land.forEach((f, i) => (clusters.get(find(i)) || clusters.set(find(i), []).get(find(i))).push(f));
+  return [...clusters.values()].map(members => {
+    // One label per paved site: its area, or e.g. "남측 생산단지 · 3개 라인" when several lines share it.
+    const names = [...new Set(members.map(f => zoneName(zoneOf(f.location))))].sort();
+    const first = names.map(n => n.split(' ')[0]);
+    const title = names.length === 1 ? names[0] : first.every(t => t === first[0]) ? `${first[0]} 생산단지 · ${names.length}개 라인` : names.join(' · ');
+    const count = facilities.filter(f => members.includes(f) || f.kind === '안벽' && members.some(m => zoneOf(m.location) === zoneOf(f.location))).length;
+    const x = members.reduce((sum,f) => sum + f.x, 0) / members.length, y = members.reduce((sum,f) => sum + f.y, 0) / members.length;
+    return {ring:convexHull(members.flatMap(f => corners(f, 18))).map(([x,y]) => yardToGeo(x,y)), title, count, centre:yardToGeo(x, y)};
+  });
 }
 
-function ship(placement, vessel, dock) {
-  const {origin_x:x,origin_y:y,heading_deg:heading,hull} = placement;
-  const {length_m:length,beam_m:beam} = vessel;
-  const a = heading * Math.PI / 180;
-  const points = [[0,-.35],[.1,-.5],[.78,-.5],[1,0],[.78,.5],[.1,.5],[0,.35]].map(([u,v]) =>
-    yardToGeo(x + u*length*Math.cos(a) - v*beam*Math.sin(a),y + u*length*Math.sin(a) + v*beam*Math.cos(a)));
-  return {id:'hull-'+hull,name:`${hull} · ${vessel.vessel_name || vessel.vessel_type}`,label:hull,kind:'선체',points,
-    description:`${vessel.vessel_type} · ${dock?.name || '배치 시설 미등록'}`,
-    dimensions:`전장 ${length} m · 선폭 ${beam} m`};
+// Concrete apron with a quay wall edge; over the photo it is nearly opaque so fields do not show through the yard.
+function drawSites(clusters, photo = false) {
+  siteLayer.clearLayers();
+  zoneLabels.clearLayers();
+  for (const site of clusters) {
+    L.polygon(site.ring, {pane:'site', interactive:false, color:photo ? '#5f5b52' : '#8d8676', weight:2,
+      fillColor:photo ? '#cbc8c0' : '#e4e1d8', fillOpacity:photo ? .97 : 1}).addTo(siteLayer);
+    const label = node('div', site.title);
+    label.append(node('small', site.count + '곳'));
+    L.marker(site.centre, {icon:L.divIcon({className:'zone-label', html:label.outerHTML, iconSize:[0,0]}), interactive:false, keyboard:false}).addTo(zoneLabels);
+  }
 }
 
 function imageryBounds(zoom, x, y, size) {
   const world = 256 * 2 ** zoom;
   const latitude = pixel => Math.atan(Math.sinh(Math.PI * (1 - 2 * pixel / world))) * 180 / Math.PI;
   const longitude = pixel => pixel / world * 360 - 180;
-  return [[latitude(y * 256 + size), longitude(x * 256)],
-          [latitude(y * 256), longitude(x * 256 + size)]];
+  return [[latitude(y * 256 + size), longitude(x * 256)], [latitude(y * 256), longitude(x * 256 + size)]];
 }
 
+// ------------------------------------------------------------------ basemap from the twin's imagery
+// Water is classified by colour and kept only where connected to the open sea (as the twin's terrain does),
+// smoothed into a natural shoreline. Next to the yard, narrow slivers of water between the paving and the shore are
+// filled (reclaimed land), so the site meets the coast cleanly. The plan basemap is painted from that mask;
+// for the photo, the missing tiles of the source imagery are filled with the sea colour.
+
+const MASK_N = 1024;
+let waterAt = () => null;           // [lat, lon] → 0 (land) … 1 (water), null outside the imagery
+
+function imageFrame(zoom, tx, ty, size) {
+  const world = 256 * 2 ** zoom, scale = MASK_N / size;
+  return {
+    bounds: imageryBounds(zoom, tx, ty, size),
+    metresPerPx: 2 * Math.PI * R * Math.cos(site.lat * Math.PI / 180) / world / scale,
+    toPx([lat, lon]) {
+      const sin = Math.sin(lat * Math.PI / 180);
+      return [((lon + 180) / 360 * world - tx * 256) * scale, ((.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * world - ty * 256) * scale];
+    },
+    toGeo(px, py) {
+      const x = px / scale + tx * 256, y = py / scale + ty * 256;
+      return [Math.atan(Math.sinh(Math.PI * (1 - 2 * y / world))) * 180 / Math.PI, x / world * 360 - 180];
+    },
+  };
+}
+
+// Mean over a (2r+1)² box, edges clamped; separable running sums.
+function boxBlur(src, n, radius) {
+  const r = Math.max(1, Math.round(radius)), w = 2 * r + 1, tmp = new Float32Array(n * n), out = new Float32Array(n * n);
+  const c = v => v < 0 ? 0 : v > n - 1 ? n - 1 : v;
+  for (let y = 0; y < n; y++) {
+    const o = y * n;
+    let sum = 0;
+    for (let k = -r; k <= r; k++) sum += src[o + c(k)];
+    for (let x = 0; x < n; x++) { tmp[o + x] = sum / w; sum += src[o + c(x + r + 1)] - src[o + c(x - r)]; }
+  }
+  for (let x = 0; x < n; x++) {
+    let sum = 0;
+    for (let k = -r; k <= r; k++) sum += tmp[c(k) * n + x];
+    for (let y = 0; y < n; y++) { out[y * n + x] = sum / w; sum += tmp[c(y + r + 1) * n + x] - tmp[c(y - r) * n + x]; }
+  }
+  return out;
+}
+const over = (src, t) => src.map(v => v > t ? 1 : 0);
+const smoothstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+const mix = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+
+function analyseImagery(image, frame, seed, rings, feather, depthFrom = null) {
+  const n = MASK_N, total = n * n, mpp = frame.metresPerPx;
+  const canvas = Object.assign(document.createElement('canvas'), {width:n, height:n});
+  const g = canvas.getContext('2d', {willReadFrequently:true});
+  g.drawImage(image, 0, 0, n, n);
+  const px = g.getImageData(0, 0, n, n).data;
+  const luma = new Float32Array(total), flat = new Float32Array(total);
+  for (let i = 0; i < total; i++) {
+    const r = px[4*i], gr = px[4*i+1], b = px[4*i+2];
+    luma[i] = (.3 * r + .59 * gr + .11 * b) / 255;
+    flat[i] = Math.abs(r - 60) < 12 && Math.abs(gr - 83) < 12 && Math.abs(b - 114) < 12 ? 1 : 0;   // the provider's no-data fill
+  }
+  const nodata = over(boxBlur(over(boxBlur(flat, n, 6), .97), n, 9), .01);     // large flat blocks and their seam
+  // Candidate water: blue-green and well above red (dark sea and turquoise shallows), not as dark as forest, and smooth.
+  // The forest here is as blue-green as the sea but darker and textured; fields are red/brown.
+  const mean = boxBlur(luma, n, 3), meanSq = boxBlur(luma.map(l => l * l), n, 3);
+  const candidate = new Float32Array(total);
+  for (let i = 0; i < total; i++) {
+    const r = px[4*i] / 255, gr = px[4*i+1] / 255, b = px[4*i+2] / 255, l = luma[i];
+    const rough = Math.sqrt(Math.max(0, meanSq[i] - mean[i] * mean[i]));
+    candidate[i] = nodata[i] || b > gr * .85 && b > r * 1.3 && l > .185 && l < .6 && rough < .015 ? 1 : 0;
+  }
+  const passable = boxBlur(candidate, n, 1);                                     // bridge thin fish-farm lines
+  const region = new Uint8Array(total), stack = [];
+  const push = i => { if (!region[i] && passable[i] > .4) { region[i] = 1; stack.push(i); } };
+  seed(push);
+  while (stack.length) {
+    const i = stack.pop(), x = i % n;
+    if (x > 0) push(i - 1);
+    if (x < n - 1) push(i + 1);
+    if (i >= n) push(i - n);
+    if (i < total - n) push(i + n);
+  }
+  let water = over(boxBlur(Float32Array.from(region), n, 25 / mpp), .35);      // swallow fish farms and boats
+  // Reclaim: the paved site is land, and water slivers within 80 m of it are closed (up to about 60 m wide).
+  const siteCanvas = Object.assign(document.createElement('canvas'), {width:n, height:n});
+  const sg = siteCanvas.getContext('2d', {willReadFrequently:true});
+  sg.fillStyle = '#fff';
+  for (const ring of rings) {
+    sg.beginPath();
+    ring.forEach((point, k) => sg[k ? 'lineTo' : 'moveTo'](...frame.toPx(point)));
+    sg.fill();
+  }
+  const sitePx = sg.getImageData(0, 0, n, n).data, paved = new Float32Array(total);
+  for (let i = 0; i < total; i++) paved[i] = sitePx[4*i+3] / 255;
+  const near = boxBlur(paved, n, 80 / mpp);
+  const land = water.map((w, i) => Math.max(1 - w, paved[i]));
+  const closed = over(boxBlur(over(boxBlur(land, n, 30 / mpp), .02), n, 30 / mpp), .98);
+  for (let i = 0; i < total; i++) if (near[i] > 0 && closed[i]) land[i] = 1;
+  water = land.map(l => 1 - l);
+  const soft = boxBlur(boxBlur(water, n, 2), n, 2).map(v => Math.min(1, Math.max(0, (v - .5) * 2.4 + .5)));   // smooth shoreline
+  // Sea depth shading; the detail image takes it from the wide one so both shade the sea alike.
+  const depth = depthFrom ? new Float32Array(total).map((_, i) => depthFrom(frame.toGeo(i % n + .5, Math.floor(i / n) + .5)) ?? 1)
+    : boxBlur(boxBlur(water, n, 45 / mpp), n, 45 / mpp);
+  const lumaBlur = boxBlur(luma, n, 2);
+
+  // Plan basemap: land tinted by what the photo shows (forest, fields, built-up), light texture; sea by depth.
+  const DEEP = [146,188,208], SHALLOW = [190,221,232], FOAM = [232,244,247], COAST = [104,146,168];
+  const FIELD = [238,236,223], FOREST = [199,218,192], URBAN = [228,225,220];
+  const plan = g.createImageData(n, n), out = plan.data;
+  let seaSum = [0, 0, 0], seaCount = 0;
+  for (let i = 0; i < total; i++) {
+    const r = px[4*i] / 255, gr = px[4*i+1] / 255, b = px[4*i+2] / 255, l = luma[i];
+    const sat = Math.max(r, gr, b) - Math.min(r, gr, b), green = gr - (r + b) / 2;
+    let ground = mix(FIELD, FOREST, smoothstep(.40, .22, l) * smoothstep(-.01, .05, green));
+    ground = mix(ground, URBAN, smoothstep(.42, .62, l) * smoothstep(.16, .06, sat) * .85);
+    const detail = (l - lumaBlur[i]) * 95;
+    ground = ground.map(c => c + detail);
+    let sea = mix(SHALLOW, DEEP, smoothstep(.5, .92, depth[i]));
+    sea = mix(sea, FOAM, smoothstep(.6, .5, depth[i]) * .55);
+    const w = soft[i], edge = Math.max(0, 1 - Math.abs(w - .5) * 3.2);
+    const colour = mix(mix(ground, sea, w), COAST, edge * .6);
+    out[4*i] = colour[0]; out[4*i+1] = colour[1]; out[4*i+2] = colour[2];
+    const x = i % n, y = (i - x) / n;
+    out[4*i+3] = 255 * smoothstep(0, feather, Math.min(x, y, n - 1 - x, n - 1 - y));
+    if (depth[i] > .97 && !nodata[i]) { seaSum = [seaSum[0] + px[4*i], seaSum[1] + px[4*i+1], seaSum[2] + px[4*i+2]]; seaCount++; }
+  }
+  g.putImageData(plan, 0, 0);
+  const result = {
+    plan: canvas.toDataURL('image/png'),
+    fix: null,
+    sample(point) {
+      const [x, y] = frame.toPx(point).map(Math.floor);
+      return x >= 0 && y >= 0 && x < n && y < n ? soft[y * n + x] : null;
+    },
+    depth(point) {                                                           // bilinear
+      const [fx, fy] = frame.toPx(point).map(v => v - .5), x = Math.floor(fx), y = Math.floor(fy);
+      if (x < 0 || y < 0 || x >= n - 1 || y >= n - 1) return null;
+      const tx = fx - x, ty = fy - y, k = y * n + x;
+      return (depth[k] * (1 - tx) + depth[k + 1] * tx) * (1 - ty) + (depth[k + n] * (1 - tx) + depth[k + n + 1] * tx) * ty;
+    },
+  };
+  // Photo repair: missing tiles take the open-sea colour of the photo, feathered into it.
+  if (seaCount && nodata.some(v => v)) {
+    const feathered = boxBlur(boxBlur(nodata, n, 3), n, 3), colour = seaSum.map(v => v / seaCount);
+    const fix = g.createImageData(n, n), f = fix.data, random = seeded('sea');
+    for (let i = 0; i < total; i++) {
+      if (!feathered[i]) continue;
+      const noise = (random() - .5) * 3;
+      f[4*i] = colour[0] + noise; f[4*i+1] = colour[1] + noise; f[4*i+2] = colour[2] + noise;
+      f[4*i+3] = 255 * Math.min(1, feathered[i] * 1.6);
+    }
+    g.putImageData(fix, 0, 0);
+    result.fix = canvas.toDataURL('image/png');
+  }
+  return result;
+}
+
+const loadImage = url => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => resolve(image);
+  image.onerror = () => reject(new Error(url));
+  image.src = url;
+});
+
+// Basemaps: "배치도" (plan painted from the imagery; the muted photo when that fails) and "위성" (photo).
+let siteData = [];
 async function setupImagery(config, useTwinImagery) {
-  const imagery = L.layerGroup();
+  const photo = L.layerGroup(), plan = L.layerGroup();
   if (config.vworld_key) {
     L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${encodeURIComponent(config.vworld_key)}/Satellite/{z}/{y}/{x}.jpeg`,
-      {maxNativeZoom:19,maxZoom:20,attribution:'지도 © 브이월드 (국토교통부)'}).addTo(imagery);
+      {pane:'imagery', maxNativeZoom:19, maxZoom:20, attribution:'지도 © 브이월드 (국토교통부)'}).addTo(photo);
   }
   if (useTwinImagery) {
     try {
       const response = await fetch('/map/twin-satellite.json');
       if (!response.ok) throw new Error('영상 정보 없음');
       const m = await response.json();
+      const outer = {url:'/map/twin-satellite.jpg', frame:imageFrame(m.zoom, m.tile_x0, m.tile_y0, m.size_px)};
+      const inner = m.inner_size_px ? {url:'/map/twin-satellite-detail.jpg', frame:imageFrame(m.inner_zoom, m.inner_tile_x0, m.inner_tile_y0, m.inner_size_px)} : null;
       const attribution = '위성 영상 © 브이월드 (국토교통부)';
-      const overview = L.imageOverlay('/map/twin-satellite.jpg',
-        imageryBounds(m.zoom,m.tile_x0,m.tile_y0,m.size_px),{attribution}).addTo(imagery);
-      overview.once('error', () => { $('status').textContent = '디지털 트윈 항공영상을 불러오지 못했습니다.'; });
-      if (m.inner_size_px) {
-        L.imageOverlay('/map/twin-satellite-detail.jpg',
-          imageryBounds(m.inner_zoom,m.inner_tile_x0,m.inner_tile_y0,m.inner_size_px)).addTo(imagery);
+      try {
+        const [outerImage, innerImage] = await Promise.all([loadImage(outer.url), inner && loadImage(inner.url).catch(() => null)]);
+        const rings = siteData.map(s => s.ring), scale = MASK_N / m.size_px;
+        const wide = analyseImagery(outerImage, outer.frame, push => {
+          for (const [x, y] of m.sea_seeds || []) {
+            const cx = Math.round(x * scale), cy = Math.round(y * scale);
+            for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+              if (cx + dx >= 0 && cy + dy >= 0 && cx + dx < MASK_N && cy + dy < MASK_N) push((cy + dy) * MASK_N + cx + dx);
+            }
+          }
+        }, rings, 40);
+        // The detail image starts from the open water the wide one found.
+        const detail = innerImage && analyseImagery(innerImage, inner.frame, push => {
+          for (let y = 2; y < MASK_N; y += 4) for (let x = 2; x < MASK_N; x += 4) if (wide.sample(inner.frame.toGeo(x, y)) > .97) push(y * MASK_N + x);
+        }, rings, 140, point => wide.depth(point));
+        waterAt = point => detail?.sample(point) ?? wide.sample(point);
+        L.imageOverlay(wide.plan, outer.frame.bounds, {pane:'imagery', attribution}).addTo(plan);
+        if (detail) L.imageOverlay(detail.plan, inner.frame.bounds, {pane:'imagery'}).addTo(plan);
+        L.imageOverlay(outer.url, outer.frame.bounds, {pane:'imagery', attribution}).addTo(photo);
+        if (wide.fix) L.imageOverlay(wide.fix, outer.frame.bounds, {pane:'imagery'}).addTo(photo);
+        if (innerImage) L.imageOverlay(inner.url, inner.frame.bounds, {pane:'imagery'}).addTo(photo);
+      } catch (error) {
+        console.warn('배치도 바탕을 만들지 못했습니다.', error);
+        L.imageOverlay(outer.url, outer.frame.bounds, {pane:'imagery', attribution}).addTo(photo);
+        if (inner) L.imageOverlay(inner.url, inner.frame.bounds, {pane:'imagery'}).addTo(photo);
       }
     } catch {
-      if (!config.vworld_key) $('status').textContent = '디지털 트윈 항공영상 파일을 찾을 수 없습니다.';
+      if (!config.vworld_key) $('status').textContent = '항공영상 파일이 없어 배치도만 표시합니다.';
     }
   }
-  if (!imagery.getLayers().length) return;
-  satellite = imagery.addTo(map);
-  const button = $('satellite');
-  button.hidden = false;
-  const update = () => {
-    const show = map.hasLayer(satellite);
-    button.setAttribute('aria-pressed',String(show));
-    button.textContent = show ? '배치도' : '위성 영상';
+  if (!photo.getLayers().length) return;
+  const hasPlan = plan.getLayers().length > 0;
+  $('map-area').classList.toggle('no-plan', !hasPlan);
+  const show = asPhoto => {
+    $('map-area').classList.toggle('base-plan', !asPhoto);
+    if (hasPlan) { (asPhoto ? plan : photo).remove(); (asPhoto ? photo : plan).addTo(map); }
+    else photo.addTo(map);
+    drawSites(siteData, asPhoto);
   };
-  button.onclick = () => {
-    if (map.hasLayer(satellite)) map.removeLayer(satellite);
-    else satellite.addTo(map);
-    update();
-  };
-  update();
+  show(false);
+  const toggle = $('base-toggle');
+  toggle.hidden = false;
+  for (const button of toggle.querySelectorAll('button')) {
+    button.onclick = () => {
+      show(button.dataset.base === 'photo');
+      for (const other of toggle.querySelectorAll('button')) other.setAttribute('aria-pressed', String(other === button));
+    };
+  }
+}
+
+function drawLegend() {
+  $('legend').replaceChildren(...Object.entries(KINDS).map(([kind, style]) => {
+    const row = node('span');
+    row.append(dot(style.color), node('span', kind));
+    return row;
+  }));
 }
 
 async function showAccount() {
   const user = await api('me');
-  $('map-account').textContent = (user.name || user.id) + ' (' + user.id + ' · ' + user.group_id + ')';
-  $('map-logout').hidden = false;
+  $('map-account').textContent = user.name || user.id;
+  $('map-profile-info').textContent = user.id + ' · ' + (user.group_id === 'ADMIN' ? '관리자' : user.group_id);
+  $('map-profile').hidden = false;
+  $('map-logout').hidden = !token;
 }
 $('map-logout').onclick = async () => {
   try {
@@ -331,50 +1038,736 @@ $('map-logout').onclick = async () => {
     location.assign('/');
   }
 };
+const accountMenu = $('map-profile');
+document.addEventListener('click', event => {
+  if (accountMenu.open && !accountMenu.contains(event.target)) accountMenu.open = false;
+});
+accountMenu.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !accountMenu.open) return;
+  accountMenu.open = false;
+  accountMenu.querySelector('summary').focus();
+});
 showAccount().catch(() => {});
 
+let layout = new Map(), canonical = id => id, equipmentSpecs = [], equipmentNames = new Map(), craneRailRows = [], craneBooms = new Map();
+
 async function load() {
-  const [sites, live, placements, vessels, config] = await Promise.all([
-    api('yard_sites'),api('location_geo'),api('hull_placements'),
-    api('vessel_details'),fetch('/map/config').then(response => response.ok ? response.json() : {}).catch(() => ({}))
+  const [sites, live, placements, vessels, bookings, specs, equipment, rails, booms, config] = await Promise.all([
+    api('yard_sites'), api('location_geo'), api('hull_placements'), api('vessel_details'),
+    optional('dock_bookings'), optional('equipment_specs'), optional('equipment'), optional('crane_rails'), optional('crane_kinematics'),
+    fetch('/map/config').then(response => response.ok ? response.json() : {}).catch(() => ({}))
   ]);
   const activeSite = sites[0];
-  const sameSite = activeSite && ['lat','lon','x_axis_bearing_deg'].every(key => Math.abs(activeSite[key]-SITE[key]) < 1e-6);
   site = activeSite || SITE;
-  const layout = new Map((sameSite || !activeSite ? TWIN_LAYOUT : []).map(f => [f.location,f]));
-  for (const f of live) {
-    const twinId = sameSite ? ALIASES[f.location] : null;
-    if (twinId && layout.has(twinId)) continue;
-    layout.set(f.location,f);
-  }
-  const facilities = Array.from(layout.values(),facility);
+  $('site-name').textContent = activeSite?.name || '';
+  const {facilities, alias} = distinctFootprints(live);
+  canonical = id => alias.get(id) || id;
+  layout = new Map(facilities.map(f => [f.location, f]));
+  equipmentSpecs = specs.map(s => ({...s, station: s.station ? canonical(s.station) : s.station}));
+  equipmentNames = new Map(equipment.map(e => [e.id, e.name]));
+  craneRailRows = rails;
+  craneBooms = new Map(booms.map(row => [row.equipment, row]));
+
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const occupants = dockOccupants(bookings, canonical, today);
   const ships = placements.flatMap(placement => {
     const vessel = vessels.find(v => v.hull === placement.hull);
-    const dock = layout.get(placement.dock) || layout.get(ALIASES[placement.dock]);
-    return vessel?.length_m && vessel?.beam_m ? [ship(placement,vessel,dock)] : [];
+    const dock = layout.get(canonical(placement.dock));
+    const occupant = dock && occupants.get(dock.location);
+    if (occupant && occupant !== placement.hull) return [];
+    return vessel?.length_m && vessel?.beam_m ? [shipItem(placement, vessel, dock)] : [];
   });
-  items = [...facilities,...ships];
-  $('summary').textContent = `시설 ${facilities.length}곳 · 배치된 선체 ${ships.length}척`;
-  const filters = $('filters');
-  for (const name of ['',...Object.keys(KIND_COLORS).filter(kind => items.some(item => item.kind === kind))]) {
-    const button = node('button',name || '전체');
-    button.setAttribute('aria-pressed',String(!name));
-    button.onclick = () => {
-      filter = name;
-      for (const sibling of filters.children) sibling.setAttribute('aria-pressed',String(sibling === button));
-      render();
-      fit();
-    };
-    filters.append(button);
+  const hullsByDock = new Map();
+  for (const ship of ships) {
+    const dock = canonical(placements.find(p => 'hull-' + p.hull === ship.id)?.dock || '');
+    (hullsByDock.get(dock) || hullsByDock.set(dock, []).get(dock)).push(ship.label);
   }
-  await setupImagery(config, sameSite || !activeSite);
-  drawYardSurface(layout, sameSite || !activeSite);
+  items = [...facilities.map(f => facilityItem(f, equipmentSpecs.filter(s => s.station === f.location), hullsByDock.get(f.location) || [])), ...ships];
+
+  const zones = [...new Set(items.map(i => i.zone))].sort((a,b) => a === 'MAIN' ? -1 : b === 'MAIN' ? 1 : a.localeCompare(b));
+  $('stats').replaceChildren(...[['구역', zones.length], ['시설', facilities.length], ['입거 선체', ships.length]].map(([label, value]) => {
+    const stat = node('div', '', 'stat');
+    stat.append(node('b', String(value)), node('span', label));
+    return stat;
+  }));
+  const chips = (container, values, label, current, apply) => {
+    container.replaceChildren();
+    for (const value of ['', ...values]) {
+      const chip = node('button', '', 'chip');
+      chip.type = 'button';
+      if (value && KINDS[value]) chip.append(dot(KINDS[value].color));
+      chip.append(node('span', value ? label(value) : '전체'), node('em', String(value ? items.filter(i => (KINDS[value] ? i.kind : i.zone) === value).length : items.length)));
+      chip.setAttribute('aria-pressed', String(value === current()));
+      chip.onclick = () => {
+        apply(value);
+        for (const sibling of container.children) sibling.setAttribute('aria-pressed', String(sibling === chip));
+        render();
+        fit();
+      };
+      container.append(chip);
+    }
+  };
+  chips($('zones'), zones, zoneName, () => zoneFilter, value => { zoneFilter = value; });
+  chips($('filters'), Object.keys(KINDS).filter(kind => items.some(item => item.kind === kind)), kind => kind, () => kindFilter, value => { kindFilter = value; });
+  $('search').oninput = event => { query = event.target.value.trim().toLowerCase(); render(); };
+
+  siteData = siteClusters(facilities);
+  drawSites(siteData);
+  await setupImagery(config, !!activeSite);
+  drawLegend();
   render();
   fit();
+  if (monitoring) startEquipmentMonitor(layout);
+  else if (linkParams.get('block')) focusBlock(linkParams.get('block'), linkParams.get('hull'));
 }
+
+// ------------------------------------------------------------------ block position (from the production control screen)
+
+// The block's last confirmed position is the facility its last confirmed move ended at (ERP blocks.location); the
+// ERP records no coordinates inside a facility, so the facility outline is drawn. Stocking plans are plans: they are
+// shown apart, dashed. No location or no facility coordinates: 위치 미등록.
+async function focusBlock(blockId, hullId) {
+  const panel = $('details');
+  const card = node('div', '', 'block-focus');
+  card.append(node('span', '블록 위치', 'badge'), node('h3', blockId));
+  panel.replaceChildren(card);
+  const layer = L.layerGroup().addTo(map);
+  const search = (route, query) => api(route + '?' + new URLSearchParams({...query, size:'200'})).then(r => r.rows || []).catch(() => null);
+  const [blocks, moves, stays] = await Promise.all([search('blocks', {'f.id': blockId}), search('moves', {'f.block': blockId}),
+    search('block_stock_plans', {'f.block': blockId})]);
+  const block = (blocks || []).find(row => row.id === blockId);
+  const confirmed = (moves || []).filter(m => m.confirmed_at).sort((a, b) => String(b.confirmed_at).localeCompare(String(a.confirmed_at)));
+  const open = (moves || []).find(m => !m.confirmed_at);
+  const where = block?.location ? layout.get(canonical(block.location)) : null;
+  const facts = node('dl', '', 'facts');
+  const fact = (key, value) => facts.append(node('dt', key), node('dd', value));
+  if (blocks === null) fact('확정 위치', '블록 조회 권한이 없습니다');
+  else if (!block) fact('확정 위치', 'ERP에 없는 블록입니다');
+  else if (!block.location) fact('확정 위치', '위치 미등록 (이동 확정 기록 없음)');
+  else if (!where || !(where.size_x_m > 0)) fact('확정 위치', `${block.location} · 위치 미등록 (시설 좌표 없음)`);
+  else fact('확정 위치', `${DISPLAY_NAMES[where.location] || where.name} (${where.location}) · 시설 단위`);
+  if (confirmed[0]) fact('확정 근거', `${confirmed[0].id} ${confirmed[0].origin || '-'} → ${confirmed[0].destination} · ${String(confirmed[0].confirmed_at).slice(0, 16).replace('T', ' ')} 확정`);
+  if (open) fact('이동 중', `${open.id} → ${open.destination} (미확정)`);
+  const plans = (stays || []).sort((a, b) => String(a.stock_from).localeCompare(String(b.stock_from)));
+  for (const plan of plans) fact('계획 적치', `${plan.location} · ${plan.stock_from} ~ ${plan.stock_until || ''} (계획)`);
+  card.append(facts);
+  const actions = node('div', '', 'block-actions');
+  const link = (text, href) => { const a = node('a', text, 'secondary'); a.href = href; actions.append(a); };
+  link('생산 관제로', '/control#' + new URLSearchParams({hull: hullId || block?.hull || '', block: blockId}));
+  link('ERP 이동 이력', '/erp/#' + new URLSearchParams({open: 'moves', q: blockId}));
+  card.append(actions);
+  const bounds = [];
+  if (where && where.size_x_m > 0) {
+    const outline = corners(where, 4).map(([x, y]) => yardToGeo(x, y));
+    L.polygon(outline, {color:'#d9480f', weight:3, fillColor:'#ff922b', fillOpacity:.25, dashArray:null}).addTo(layer)
+      .bindTooltip(`${blockId} · 마지막 확정 위치`, {permanent:true, direction:'top', className:'map-label'});
+    bounds.push(...outline);
+  }
+  for (const plan of plans) {
+    const at = yardToGeo(plan.x, plan.y);
+    L.circleMarker(at, {radius:7, color:'#1864ab', weight:2, dashArray:'3 3', fillOpacity:.15}).addTo(layer)
+      .bindTooltip(`계획 적치 ${plan.stock_from}`, {direction:'top', className:'map-label'});
+    bounds.push(at);
+  }
+  if (bounds.length) map.flyToBounds(bounds, {padding:[90, 90], maxZoom:18, duration:.6});
+}
+
+// ------------------------------------------------------------------ equipment monitor
+
+const monitoring = /^\/equipment\/?$/.test(location.pathname) || /^#equipment(?:&|$)/.test(location.hash);
+// The old map fragment links remain usable alongside /equipment?asset=<id>.
+const linkParams = new URLSearchParams(location.search);
+for (const [key, value] of new URLSearchParams(location.hash.replace(/^#(equipment&?)?/, ''))) {
+  if (!linkParams.has(key)) linkParams.set(key, value);
+}
+// Observed equipment (server feed IDs). erp: the ERP equipment type it stands for, which picks its 3D model
+// and the ERP equipment whose ratings are shown; model: for vehicles not registered in the ERP.
+const demoAssets = [
+  {id:'GC-01', name:'골리앗 크레인 1', kind:'crane', facility:'DT-DOCK', fallback:'도크', erp:'골리앗 크레인', route:[[-130,0],[130,0]], speed:4, load:82},
+  {id:'GC-02', name:'골리앗 크레인 2', kind:'crane', facility:'GY-DOCK2', fallback:'도크', erp:'골리앗 크레인', route:[[-110,22],[110,22]], speed:3, load:56},
+  {id:'TP-01', name:'블록 운반차', kind:'heavy', facility:'GY-PE1', fallback:'야드', erp:'트랜스포터', route:[[-36,12],[26,12],[26,-30]], speed:6, load:45},
+  {id:'FL-01', name:'자재 지게차', kind:'heavy', facility:'GY-STORE', fallback:'창고', model:'forklift', label:'자재 지게차 (3 t급)', route:[[-20,-35],[16,-35],[16,35]], speed:5, load:3},
+  {id:'VH-01', name:'순찰 차량', kind:'vehicle', facility:'GY-ASSY2', fallback:'작업장', model:'pickup', label:'순찰 픽업트럭', route:[[-60,-44],[55,-44],[55,44]], speed:14, load:0},
+  {id:'VH-02', name:'현장 지원 차량', kind:'vehicle', facility:'GY-OUTFIT', fallback:'작업장', model:'truck', label:'현장 지원 탑차', route:[[-60,-42],[55,-42],[55,42]], speed:12, load:0},
+];
+const MODEL_BY_TYPE = {'골리앗 크레인':'goliath', '갠트리 크레인':'gantry', '지브 크레인':'dockJib', '트랜스포터':'transporter', '지게차':'forklift'};
+// Rail cranes (ERP crane_rails): the same position rule as the portal feed and the twin (shared/contracts, 레일 주행 크레인).
+function railHome(id) {
+  const offset = [...id].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 120;
+  return 0.2 + 0.06 * (offset % 10);
+}
+const KIND_BY_TYPE = {'골리앗 크레인':'crane', '갠트리 크레인':'crane', '지브 크레인':'crane', '트랜스포터':'heavy', '지게차':'heavy'};
+let assetKind = 'crane', selectedAsset = null, monitoredAssets = [];
+let assetLayer, assetMarkers = new Map();
+const assetsByCategory = () => monitoredAssets.filter(asset => asset.kind === assetKind);
+
+let latestSamples = new Map();
+let collecting = false;
+let collectionPending = false;
+let collectionRevision = 0;
+
+function updateCollectionButton() {
+  const button = $('collection-toggle');
+  button.textContent = collecting ? '수집 중지' : '수집 시작';
+  button.disabled = collectionPending;
+}
+
+$('collection-toggle').onclick = async () => {
+  collectionPending = true;
+  collectionRevision++;
+  updateCollectionButton();
+  try {
+    const action = collecting ? 'stop' : 'start';
+    const response = await fetch('/equipment/collection/' + action, {
+      method:'POST',
+      headers:{Authorization:'Bearer ' + token},
+      signal:AbortSignal.timeout(8000),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || result.message || '수집 상태를 바꿀 수 없습니다.');
+    collecting = result.collecting;
+    $('collection-message').textContent = collecting ? '서버가 모의 장비 수집을 시작했습니다.' : '수집을 중지했습니다.';
+  } catch (error) {
+    $('collection-message').textContent = error.message;
+  } finally {
+    collectionRevision++;
+    collectionPending = false;
+    updateCollectionButton();
+  }
+};
+
+function alongRoute(asset, position) {
+  const points = asset.yard, step = Math.min(1, Math.max(0, position)) * (points.length - 1);
+  const index = Math.min(Math.floor(step), points.length - 2), fraction = step - index;
+  const [start, end] = points.slice(index, index + 2);
+  return {x:start[0] + (end[0] - start[0]) * fraction, y:start[1] + (end[1] - start[1]) * fraction,
+    bearing:Math.atan2(end[1] - start[1], end[0] - start[0])};
+}
+function locationForSample(asset, position) {
+  const {x, y} = alongRoute(asset, position);
+  return yardToGeo(x, y);
+}
+
+// Goliath/gantry crane from above: the girder spans the dock (across its axis) on two legs, the trolley on it.
+function craneParts(asset, position) {
+  const {x, y, bearing} = alongRoute(asset, position), f = asset.facility;
+  const a = asset.rail ? bearing : (f.heading_deg || 0) * Math.PI / 180;
+  const span = asset.rail ? asset.gauge / 2 : f.size_y_m / 2 + 9;
+  const at = (u, v) => yardToGeo(x + u * Math.cos(a) - v * Math.sin(a), y + u * Math.sin(a) + v * Math.cos(a));
+  const box = (u0, u1, v0, v1) => [at(u0,v0), at(u1,v0), at(u1,v1), at(u0,v1)];
+  return {girder:box(-4.5, 4.5, -span, span), legs:[box(-7, 7, -span - 3, -span + 3), box(-7, 7, span - 3, span + 3)],
+    trolley:box(-6, 6, span * .1, span * .1 + 11), shadow:shadowed(box(-4.5, 4.5, -span, span), 40)};
+}
+function craneRails(asset) {
+  const f = asset.facility, span = f.size_y_m / 2 + 9, [first, last] = [asset.yard[0], asset.yard[asset.yard.length - 1]];
+  const a = (f.heading_deg || 0) * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
+  const ends = [[first, -14], [last, 14]].map(([[x, y], extra]) => [x + ux * extra, y + uy * extra]);
+  return [-span, span].map(v => ends.map(([x, y]) => yardToGeo(x - v * uy, y + v * ux)));
+}
+// Rail-mounted jib crane from above: the portal frame on its two rails, the boom turned to its slew angle (the
+// observed or replayed one, else its jib direction) and as long as its hook radius (boom · cos(boom angle)).
+function railCraneParts(asset, position, pose = null) {
+  const {x, y, bearing} = alongRoute(asset, position), g = asset.gauge / 2;
+  const slew = pose?.slew ?? asset.jib, a = slew * Math.PI / 180;
+  const radius = pose?.luff != null && asset.boom ? asset.boom * Math.cos(pose.luff * Math.PI / 180) : asset.reach;
+  const ux = Math.cos(bearing), uy = Math.sin(bearing);
+  const at = (u, v) => yardToGeo(x + u * ux - v * uy, y + u * uy + v * ux);
+  const jx = Math.cos(a), jy = Math.sin(a);
+  const jib = (w, l0, l1) => [[l0, -w], [l1, -w], [l1, w], [l0, w]].map(([l, s]) => yardToGeo(x + l * jx - s * jy, y + l * jy + s * jx));
+  return {portal:[at(-g, -g), at(g, -g), at(g, g), at(-g, g)], jib:jib(1.2, 0, radius), counter:jib(2.5, -12, -4),
+    shadow:shadowed(jib(1.2, 0, radius), 30), hook:yardToGeo(x + radius * jx, y + radius * jy)};
+}
+function railLines(asset) {
+  const [[x0, y0], [x1, y1]] = asset.yard, g = asset.gauge / 2, b = Math.atan2(y1 - y0, x1 - x0);
+  const nx = -Math.sin(b), ny = Math.cos(b), ex = Math.cos(b) * 6, ey = Math.sin(b) * 6;
+  return [-g, g].map(v => [yardToGeo(x0 - ex + nx * v, y0 - ey + ny * v), yardToGeo(x1 + ex + nx * v, y1 + ey + ny * v)]);
+}
+const isJib = asset => ['dockJib', 'quayJib'].includes(asset.model);
+
+function updateCrane(asset, position, pose = null) {
+  if (isJib(asset)) {
+    const parts = railCraneParts(asset, position, pose), drawn = asset.drawn;
+    if (!drawn) return;
+    for (const key of ['shadow', 'portal', 'jib', 'counter']) drawn[key].setLatLngs(parts[key]);
+    drawn.hook?.setLatLng(parts.hook);
+    return;
+  }
+  const parts = craneParts(asset, position), drawn = asset.drawn;
+  if (!drawn) return;
+  drawn.shadow.setLatLngs(parts.shadow);
+  drawn.girder.setLatLngs(parts.girder);
+  drawn.trolley.setLatLngs(parts.trolley);
+  drawn.legs.forEach((leg, i) => leg.setLatLngs(parts.legs[i]));
+}
+
+const VEHICLE_ICONS = {
+  transporter:'<rect x="3" y="11" width="28" height="12" rx="2" fill="#f2b632" stroke="#5b4510"/><rect x="24" y="12" width="6" height="10" rx="1" fill="#3a3f44"/>' +
+    '<g fill="#22272b"><rect x="5" y="9" width="4" height="2"/><rect x="12" y="9" width="4" height="2"/><rect x="19" y="9" width="4" height="2"/><rect x="5" y="23" width="4" height="2"/><rect x="12" y="23" width="4" height="2"/><rect x="19" y="23" width="4" height="2"/></g>',
+  transporterLoaded:'<rect x="3" y="11" width="28" height="12" rx="2" fill="#f2b632" stroke="#5b4510"/><rect x="5" y="9" width="17" height="16" rx="1" fill="#b55c43" stroke="#5d2a1c"/><rect x="24" y="12" width="6" height="10" rx="1" fill="#3a3f44"/>',
+  forklift:'<rect x="9" y="11" width="15" height="12" rx="3" fill="#ef7d22" stroke="#6b3307"/><rect x="11" y="13" width="7" height="8" rx="1.5" fill="#2b3237"/><rect x="24" y="12" width="7" height="2" fill="#30363b"/><rect x="24" y="20" width="7" height="2" fill="#30363b"/>',
+  pickup:'<rect x="5" y="11" width="24" height="12" rx="3.5" fill="#f4f6f7" stroke="#4f5961"/><rect x="18" y="12.5" width="6" height="9" rx="1.5" fill="#33414c"/><rect x="7" y="13" width="9" height="8" rx="1" fill="#d4dade"/>',
+  truck:'<rect x="3" y="10" width="20" height="14" rx="1.5" fill="#e9ecee" stroke="#4f5961"/><rect x="23" y="11" width="8" height="12" rx="2.5" fill="#2f6fa3" stroke="#1f3f5c"/><rect x="27" y="12.5" width="3" height="9" rx="1" fill="#1d2a33"/>',
+};
+function vehicleSvg(asset) {
+  const kind = asset.model === 'transporter' ? (asset.load > 0 ? 'transporterLoaded' : 'transporter') : VEHICLE_ICONS[asset.model] ? asset.model : 'truck';
+  return `<svg viewBox="0 0 34 34" aria-hidden="true">${VEHICLE_ICONS[kind]}</svg>`;
+}
+// Screen rotation of a yard bearing (Leaflet's screen y grows southward).
+function screenAngle(bearing) {
+  const [lat0, lon0] = yardToGeo(0, 0), [lat1, lon1] = yardToGeo(Math.cos(bearing), Math.sin(bearing));
+  return Math.atan2(-(lat1 - lat0), (lon1 - lon0) * Math.cos(lat0 * Math.PI / 180)) * 180 / Math.PI;
+}
+function placeAsset(asset, position) {
+  const marker = assetMarkers.get(asset.id);
+  if (asset.kind === 'crane') updateCrane(asset, position, latestSamples.get(asset.id));
+  if (!marker) return;
+  const where = alongRoute(asset, position);
+  marker.setLatLng(yardToGeo(where.x, where.y));
+  const svg = marker.getElement()?.querySelector('svg');
+  if (svg) svg.style.transform = `rotate(${screenAngle(where.bearing).toFixed(1)}deg)`;
+}
+
+function renderAssetDetails() {
+  const facts = $('asset-facts');
+  facts.replaceChildren();
+  if (!selectedAsset) return;
+  const sample = sensorPinned || latestSamples.get(selectedAsset.id);
+  const values = [['장비 ID', selectedAsset.id], ['작업 구역', selectedAsset.area]];
+  if (sample) {
+    if (sample.source === 'erp_plan') {
+      values.push(['위치 출처', 'ERP 크레인 배정 기준'], ['상태', sample.state],
+        ['작업', sample.work ? `${sample.work} · ${sample.hull} · ${sample.assignment}${sample.lift ? ' · ' + sample.lift + '회째 인양' : ''}` : '배정 작업 없음(대기)'],
+        ['하중', sample.load ? sample.load + ' t (의장품)' : '없음']);
+      if (sample.motion === 'estimated' && sample.work) values.push(['인양 지점', '추정(crane_lifts)']);
+    } else values.push(['위치 출처', sensorPinned ? '과거 위치 · 모의 계측' : '모의 계측'], ['상태', sample.state], ['속도', sample.speed + ' km/h'],
+      ['하중', sample.load + ' t'], ['출처', '서버 모의']);
+    if (sample.hook !== null) values.push(['훅 높이', sample.hook + ' m (안벽 기준)']);
+    if (sample.slew != null) {
+      const boom = selectedAsset.boom;
+      values.push(['선회각', sample.slew.toFixed(1) + '°'], ['붐 각도', sample.luff.toFixed(1) + '°' +
+        (boom ? ` · 작업 반경 ${(boom * Math.cos(sample.luff * Math.PI / 180)).toFixed(1)} m` : '')]);
+    }
+  } else values.push(['위치 출처', selectedAsset.observed ? '모의 계측 · 수신 대기' : 'ERP 배치 시설 기준'],
+    ['상태', selectedAsset.observed ? '수신 대기' : '관측 장치 미연결 (ERP 등록 장비)']);
+  for (const [key,value] of values) facts.append(node('dt',key),node('dd',value));
+}
+
+async function loadObservations(kind) {
+  const revision = collectionRevision;
+  const response = await fetch('/equipment/observations/' + kind, {
+    headers: token ? {Authorization:'Bearer ' + token} : {},
+    signal: AbortSignal.timeout(6000)
+  });
+  if (!response.ok) throw new Error(response.status === 401 ? '다시 로그인해 주세요.' : '관측 기록 조회 지연');
+  const result = await response.json();
+  const {observations} = result;
+  if (kind !== assetKind || revision !== collectionRevision || collectionPending) return;
+  collecting = result.collecting;
+  $('collection-toggle').hidden = !result.can_manage_collection;
+  updateCollectionButton();
+  latestSamples = new Map();
+  const rows = [];
+  for (const sample of observations) {
+    if (!latestSamples.has(sample.asset_id)) latestSamples.set(sample.asset_id, sample);
+    const row = document.createElement('tr');
+    row.append(node('td',new Date(sample.observed_at).toLocaleTimeString('ko-KR',{hour12:false})),
+      node('td',sample.asset_id),node('td',sample.state),
+      node('td',sample.hook === null ? sample.speed + ' km/h' : sample.load + ' t · 훅 ' + sample.hook + ' m'));
+    rows.push(row);
+  }
+  $('asset-log').replaceChildren(...rows);
+  // Rail jib cranes: the ERP crane plan now (GET /api/crane_activity, the same state the twin shows), whether or not the
+  // feed is collecting: working only inside their ERP crane assignments, otherwise parked with nothing on the hook.
+  if (kind === 'crane') {
+    try {
+      const live = await api('crane_activity');
+      for (const crane of live.cranes) {
+        latestSamples.set(crane.id, {asset_id:crane.id, observed_at:live.time, kind:'crane', source:'erp_plan',
+          position:crane.rail_pos, state:crane.state, speed:0, load:Math.round(crane.load_t), hook:Math.round(crane.hook.z - 12),
+          slew:crane.slew_deg, luff:crane.luff_deg, work:crane.work, assignment:crane.assignment, hull:crane.hull,
+          lift:crane.lift_no ? `${crane.lift_no}/${crane.lifts}` : null, motion:crane.source, basis:crane.job_basis});
+      }
+    } catch { /* older ERP or no permission: the feed values stay */ }
+  }
+  for (const asset of assetsByCategory()) {
+    const sample = latestSamples.get(asset.id);
+    if (sample && !(sensorPinned && asset === selectedAsset)) placeAsset(asset, sample.position);
+  }
+  renderAssetDetails();
+  const latest = observations[0];
+  const age = latest ? Math.max(0, Math.floor((Date.now() - Date.parse(latest.observed_at)) / 1000)) : null;
+  $('signal').textContent = !collecting ? '○ 수집 중지' : age === null ? '○ 관측값 대기' :
+    (age < 5 ? '● LIVE' : '○ 수신 지연') + ' · 서버 모의 · ' + age + '초 전';
+}
+
+async function pollObservations() {
+  const kind = assetKind;
+  try {
+    await loadObservations(kind);
+  } catch (error) {
+    if (kind === assetKind) $('signal').textContent = '○ ' + error.message;
+  } finally {
+    refreshSensorHistory();
+    setTimeout(pollObservations, 1000);
+  }
+}
+
+// History is separate from the rolling category log. Selecting a point pins only that asset.
+let sensorSamples = [], sensorPinned = null, sensorRequest = null, sensorNext = 0, planRequest = 0;
+const sensorClock = new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul', hour:'2-digit', minute:'2-digit',
+  second:'2-digit', hourCycle:'h23'});
+const sensorTime = value => sensorClock.format(new Date(value));
+const sensorSvg = (tag, attrs) => {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
+  return element;
+};
+
+function drawSensorHistory() {
+  const graph = $('asset-graph');
+  graph.replaceChildren();
+  const current = sensorPinned || sensorSamples.at(-1);
+  $('sensor-controls').hidden = !current;
+  if (!current) return;
+  const fields = assetKind === 'crane' ? [['load','하중','t'],['hook','훅 높이','m']]
+    : assetKind === 'heavy' ? [['speed','속도','km/h'],['load','적재 하중','t']]
+    : [['speed','속도','km/h']];
+  const first = Date.parse(sensorSamples[0]?.observed_at ?? current.observed_at);
+  const end = Date.parse(sensorSamples.at(-1)?.observed_at ?? current.observed_at);
+  const x = sample => 4 + 312 * (Date.parse(sample.observed_at) - first) / Math.max(1000,end - first);
+  for (const [field,label,unit] of fields) {
+    const figure = node('figure');
+    const caption = node('figcaption');
+    const max = Math.max(1,...sensorSamples.map(sample => sample[field] ?? 0));
+    caption.append(node('span', label + ' (' + unit + ')'),
+      node('span', current[field] == null ? '미수신' : current[field] + ' ' + unit));
+    const svg = sensorSvg('svg',{viewBox:'0 0 320 60',role:'img','aria-label':label + ' · 0~' + max + ' ' + unit});
+    let previous = NaN, path = '';
+    for (const sample of sensorSamples) {
+      if (!Number.isFinite(sample[field])) { previous = NaN; continue; }
+      const time = Date.parse(sample.observed_at);
+      path += `${time - previous <= 3500 ? 'L' : 'M'}${x(sample).toFixed(1)} ${(55 - sample[field] / max * 50).toFixed(1)} `;
+      previous = time;
+    }
+    svg.append(sensorSvg('path',{d:path,fill:'none',stroke:'#087e8b','stroke-width':2}));
+    if (x(current) >= 4 && x(current) <= 316) {
+      svg.append(sensorSvg('line',{x1:x(current),x2:x(current),y1:3,y2:57,stroke:'#5d7382','stroke-dasharray':'3 3'}));
+      if (Number.isFinite(current[field])) svg.append(sensorSvg('circle',{cx:x(current),
+        cy:Math.max(5,55 - current[field] / max * 50),r:3,fill:'#087e8b'}));
+    }
+    svg.addEventListener('click', event => {
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      const target = point.matrixTransform(svg.getScreenCTM().inverse()).x;
+      if (!sensorSamples.length) return;
+      const nearest = sensorSamples.reduce((best, sample) => Math.abs(x(sample)-target) < Math.abs(x(best)-target) ? sample : best);
+      selectSensorSample(nearest);
+    });
+    figure.append(caption,svg);
+    graph.append(figure);
+  }
+  const slider = $('sensor-time');
+  const index = sensorSamples.findIndex(sample => sample.observed_at === current.observed_at);
+  slider.max = Math.max(0,sensorSamples.length - 1);
+  slider.disabled = !sensorSamples.length;
+  slider.value = index >= 0 ? index : slider.max;
+  slider.setAttribute('aria-valuetext', sensorTime(current.observed_at));
+  $('sensor-readout').textContent = (sensorPinned ? '지도에 표시 중 · ' : '최신 표본 · ') +
+    sensorTime(current.observed_at) + ' · ' + current.state;
+  $('sensor-latest').hidden = !sensorPinned;
+}
+
+async function showSensorPlan(asset, sample) {
+  const ticket = ++planRequest;
+  const label = $('sensor-plan');
+  if (asset.kind !== 'crane' || !asset.erpEquipment) {
+    label.textContent = asset.erpEquipment ? '' : 'ERP 장비 연결 없음';
+    return;
+  }
+  label.textContent = 'ERP 예정 작업 조회 중…';
+  try {
+    const when = Date.parse(sample.observed_at);
+    const day = new Date(when + 9 * 3600000).toISOString().slice(0,10);
+    const params = new URLSearchParams({'f.equipment':asset.erpEquipment,date_key:'work_day',from:day,until:day,size:'200'});
+    const result = await api('crane_assignments?' + params);
+    if (ticket !== planRequest) return;
+    const jobs = result.rows.filter(row => {
+      const start = Date.parse(row.work_day + 'T00:00:00+09:00') + row.start_hour * 3600000;
+      return row.equipment === asset.erpEquipment && when >= start && when < start + row.hours * 3600000;
+    });
+    label.textContent = jobs.length ? 'ERP 예정 작업 · ' + jobs.map(job =>
+      [job.crane_work,job.hull,job.block,job.work_area].filter(Boolean).join(' · ')).join(' / ') :
+      'ERP 예정 작업 · 이 시각에 확인된 배정 없음';
+  } catch {
+    if (ticket === planRequest) label.textContent = 'ERP 예정 작업 조회 불가';
+  }
+}
+
+function selectSensorSample(sample) {
+  if (!selectedAsset || !sample) return;
+  sensorPinned = sample;
+  placeAsset(selectedAsset, sample.position);
+  map.panInside(locationForSample(selectedAsset, sample.position));
+  renderAssetDetails();
+  drawSensorHistory();
+  showSensorPlan(selectedAsset, sample);
+}
+
+$('sensor-time').addEventListener('change', event => selectSensorSample(sensorSamples[Number(event.target.value)]));
+$('sensor-latest').onclick = () => {
+  sensorPinned = null;
+  const sample = latestSamples.get(selectedAsset?.id) || sensorSamples.at(-1);
+  if (sample) placeAsset(selectedAsset, sample.position);
+  renderAssetDetails();
+  drawSensorHistory();
+  ++planRequest;
+  $('sensor-plan').textContent = '';
+};
+
+function resetSensorHistory() {
+  sensorRequest?.abort();
+  sensorRequest = null;
+  sensorNext = 0;
+  sensorPinned = null;
+  sensorSamples = [];
+  ++planRequest;
+  $('sensor-plan').textContent = '';
+  $('sensor-status').textContent = selectedAsset?.observed ? '관측 이력 조회 중…' : '수집 연결이 없는 장비입니다.';
+  drawSensorHistory();
+  refreshSensorHistory();
+}
+
+async function refreshSensorHistory() {
+  const asset = selectedAsset;
+  if (!asset?.observed || sensorRequest || Date.now() < sensorNext) return;
+  const controller = new AbortController();
+  sensorRequest = controller;
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  try {
+    const response = await fetch('/equipment/history/' + encodeURIComponent(asset.id), {
+      headers: token ? {Authorization:'Bearer ' + token} : {}, signal: controller.signal
+    });
+    if (!response.ok) throw new Error('관측 이력을 불러오지 못했습니다.');
+    const result = await response.json();
+    if (sensorRequest !== controller) return;
+    sensorSamples = result.observations;
+    $('sensor-status').textContent = sensorSamples.length ? sensorTime(sensorSamples[0].observed_at) + ' – ' +
+      sensorTime(sensorSamples.at(-1).observed_at) + ' KST' : '최근 10분에 저장된 표본이 없습니다.';
+    drawSensorHistory();
+  } catch {
+    if (sensorRequest === controller) $('sensor-status').textContent = '관측 이력을 불러오지 못했습니다.';
+  } finally {
+    clearTimeout(timeout);
+    if (sensorRequest === controller) {
+      sensorRequest = null;
+      sensorNext = Date.now() + 8000;
+    }
+  }
+}
+
+// 360° viewer: loaded on first use; shows the model for the selected equipment's ERP type.
+let viewer = null, viewerLoading = null;
+function showModel(asset) {
+  if (!asset) return;
+  $('viewer-model').textContent = asset.modelLabel;
+  $('viewer').setAttribute('aria-label', asset.modelLabel + ' 3D 모델. 좌우로 끌거나 화살표 키로 돌려 볼 수 있습니다.');
+  viewerLoading ||= import('/map/vehicle3d.js').then(module => {
+    viewer = module.createVehicleViewer($('viewer'));
+    $('viewer-status').hidden = true;
+    $('viewer').addEventListener('viewer-angle', event => {
+      $('viewer-angle').textContent = event.detail + '°';
+      $('viewer-dial').style.setProperty('--angle', event.detail);
+    });
+    $('viewer-reset').onclick = () => viewer.reset();
+  }).catch(error => {
+    $('viewer-status').textContent = error.message.includes('3D') ? error.message : '3D 미리보기를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.';
+  });
+  viewerLoading.then(() => {
+    if (asset !== selectedAsset) return;
+    viewer?.show({model: asset.model, gauge: asset.gauge > 0 ? asset.gauge : undefined,
+      loaded: asset.kind === 'heavy' && asset.model === 'transporter'});
+  });
+}
+
+function showAssetCategory(preferred = null) {
+  const assets = assetsByCategory();
+  const list = $('asset-list');
+  const restoreFocus = list.contains(document.activeElement);
+  const scrollTop = preferred ? list.scrollTop : 0;
+  let selectedButton;
+  selectedAsset = preferred || assets[0] || null;
+  assetLayer.clearLayers();
+  assetMarkers.clear();
+  list.replaceChildren();
+  $('asset-facts').replaceChildren();
+  $('asset-title').textContent = selectedAsset?.name || '선택 장비 없음';
+  $('asset-subtitle').textContent = selectedAsset ? selectedAsset.modelLabel + ' · ' + selectedAsset.area : '';
+  $('spec-chips').replaceChildren(...(selectedAsset?.chips || []).map(text => node('span', text)));
+  for (const asset of assets) {
+    const active = asset === selectedAsset;
+    const button = node('button');
+    button.type = 'button';
+    button.append(node('span', asset.name), node('small', asset.id));
+    button.setAttribute('aria-pressed',String(active));
+    button.onclick = () => showAssetCategory(asset);
+    list.append(button);
+    if (active) selectedButton = button;
+    const colour = active ? '#e9a238' : asset.observed ? '#0b6b74' : '#6d8392';
+    const position = latestSamples.get(asset.id)?.position ?? asset.home ?? 0;
+    let html, size, anchor;
+    if (isJib(asset)) {
+      for (const rail of asset.rail ? railLines(asset) : []) L.polyline(rail, {pane:'equipment', color:'#3c4349', weight:1.6, opacity:.8, interactive:false}).addTo(assetLayer);
+      const parts = railCraneParts(asset, position, latestSamples.get(asset.id)), solid = {pane:'equipment', interactive:false, fillOpacity:1, weight:1};
+      asset.drawn = {
+        shadow:L.polygon(parts.shadow, {...solid, stroke:false, fillColor:'#0f1d28', fillOpacity:.25}).addTo(assetLayer),
+        portal:L.polygon(parts.portal, {...solid, color:'#6b5410', fillColor:'#f2c230'}).addTo(assetLayer),
+        counter:L.polygon(parts.counter, {...solid, color:'#2b2f33', fillColor:'#3c4349'}).addTo(assetLayer),
+        jib:L.polygon(parts.jib, {...solid, color:active ? '#b8761c' : '#6b5410', weight:active ? 2.5 : 1, fillColor:'#f2c230'}).addTo(assetLayer),
+        hook:L.circleMarker(parts.hook, {pane:'equipment', radius:3.5, color:'#5c1d16', fillColor:'#d8402f', fillOpacity:1, interactive:false}).addTo(assetLayer),
+      };
+      html = `<span class="tag">${asset.id}</span>`;
+      size = [asset.id.length * 7 + 20, 22]; anchor = [size[0] / 2, 30];
+    } else if (asset.kind === 'crane') {
+      for (const rail of asset.rail ? railLines(asset) : craneRails(asset)) L.polyline(rail, {pane:'equipment', color:'#3c4349', weight:2.2, opacity:.85, interactive:false}).addTo(assetLayer);
+      const parts = craneParts(asset, position), solid = {pane:'equipment', interactive:false, fillOpacity:1, weight:1};
+      asset.drawn = {
+        shadow:L.polygon(parts.shadow, {...solid, stroke:false, fillColor:'#0f1d28', fillOpacity:.28}).addTo(assetLayer),
+        legs:parts.legs.map(leg => L.polygon(leg, {...solid, color:'#5c1d16', fillColor:'#c8392b'}).addTo(assetLayer)),
+        girder:L.polygon(parts.girder, {...solid, color:active ? '#b8761c' : '#56616a', weight:active ? 2.5 : 1, fillColor:'#f5f5f2'}).addTo(assetLayer),
+        trolley:L.polygon(parts.trolley, {...solid, color:'#5c1d16', fillColor:'#d8402f'}).addTo(assetLayer),
+      };
+      html = `<span class="tag">${asset.id}</span>`;
+      size = [asset.id.length * 7 + 20, 22]; anchor = [size[0] / 2, 30];
+    } else {
+      L.polyline(asset.points, {pane:'equipment', color:colour, weight:active ? 3.5 : 2, opacity:active ? .95 : .7,
+        dashArray:active ? null : '5 6', lineCap:'round', interactive:false}).addTo(assetLayer);
+      html = vehicleSvg(asset) + `<span class="tag">${asset.id}</span>`;
+      size = [Math.max(48, asset.id.length * 7 + 20), 56]; anchor = [size[0] / 2, 17];
+    }
+    const icon = L.divIcon({className:'asset-marker' + (active ? ' active' : asset.observed ? '' : ' idle'), html, iconSize:size, iconAnchor:anchor});
+    const marker = L.marker(locationForSample(asset, position),{icon,title:asset.name,alt:asset.name,zIndexOffset:active ? 500 : 200})
+      .addTo(assetLayer);
+    marker.on('click',() => showAssetCategory(asset));
+    assetMarkers.set(asset.id,marker);
+    placeAsset(asset, position);
+  }
+  list.scrollTop = scrollTop;
+  if (selectedButton) {
+    const viewport = list.getBoundingClientRect();
+    const button = selectedButton.getBoundingClientRect();
+    if (button.top < viewport.top) list.scrollTop += button.top - viewport.top - 3;
+    else if (button.bottom > viewport.bottom) list.scrollTop += button.bottom - viewport.bottom + 3;
+    if (restoreFocus) selectedButton.focus({preventScroll:true});
+  }
+  resetSensorHistory();
+  renderAssetDetails();
+  showModel(selectedAsset);
+}
+
+// spec: the ERP unit this asset is (linked); else typeSpec: an ERP unit of the same type whose rating it shares.
+function describe(asset, spec, typeSpec = null) {
+  const rated = spec || typeSpec;
+  const type = rated?.equipment_type || asset.erp;
+  const atQuay = layout.get(rated?.station)?.kind === '안벽' || asset.id.startsWith('LC-');
+  const model = asset.model || (type === '지브 크레인' && atQuay ? 'quayJib' : MODEL_BY_TYPE[type]) || 'truck';
+  const label = asset.label || (rated ? `${rated.equipment_type} ${rated.capacity_t} t` : asset.erp || asset.name);
+  const chips = spec
+    ? [`ERP ${spec.equipment}`, spec.equipment_type, `정격 ${spec.capacity_t} t`, ...(spec.station ? [`배치 ${layout.get(spec.station)?.name || spec.station}`] : [])]
+    : typeSpec ? [typeSpec.equipment_type, `정격 ${typeSpec.capacity_t} t (ERP 동형 기준)`, 'ERP 개별 등록 없음']
+    : [asset.erp ? `ERP ${asset.erp} 미등록` : 'ERP 미등록 차량', '모의 장비'];
+  return {model, modelLabel: label, chips, erpEquipment: spec?.equipment ?? null};
+}
+
+function startEquipmentMonitor(layout) {
+  assetLayer = L.layerGroup().addTo(map);
+  const used = new Set();
+  const route = (area, offsets) => offsets.map(([dx,dy]) => local(area, dx, dy));
+  const placed = demoAssets.flatMap(asset => {
+    const area = layout.get(asset.facility)
+      || Array.from(layout.values()).find(item => item.kind === asset.fallback);
+    return area && Number.isFinite(area.x) && Number.isFinite(area.y) ? [{asset, area}] : [];
+  });
+  // Link each observed asset to the ERP unit it is: one of its type stationed at its facility, else in its area.
+  const links = new Map();
+  for (const sameArea of [false, true]) {
+    for (const {asset, area} of placed) {
+      if (!asset.erp || links.has(asset.id)) continue;
+      const spec = equipmentSpecs.find(s => s.equipment_type === asset.erp && !used.has(s.equipment) &&
+        !['DT-PE-TP', 'GY-PE2-TP'].includes(s.equipment) &&
+        (sameArea ? s.station && zoneOf(s.station) === zoneOf(area.location) : s.station === area.location));
+      if (spec) { links.set(asset.id, spec); used.add(spec.equipment); }
+    }
+  }
+  const observed = placed.map(({asset, area}) => {
+    const spec = links.get(asset.id), typeSpec = spec ? null : equipmentSpecs.find(s => s.equipment_type === asset.erp);
+    const yard = route(area, asset.route);
+    return {...asset, ...describe(asset, spec, typeSpec), observed:true, yard, points:yard.map(p => yardToGeo(...p)), facility:area, area:DISPLAY_NAMES[area.location] || area.name};
+  });
+  // ERP equipment without a feed (the added lines): shown at its station, not moving.
+  const registered = equipmentSpecs.filter(s => KIND_BY_TYPE[s.equipment_type] && !used.has(s.equipment) && layout.has(s.station)).map(spec => {
+    const area = layout.get(spec.station);
+    const crane = KIND_BY_TYPE[spec.equipment_type] === 'crane';
+    const offsets = crane ? [[-area.size_x_m / 2 + 15, 0], [area.size_x_m / 2 - 15, 0]] : [[-area.size_x_m / 3, 0], [area.size_x_m / 3, 0]];
+    const asset = {id:spec.equipment, name:equipmentNames.get(spec.equipment) || spec.equipment,
+      kind:KIND_BY_TYPE[spec.equipment_type], erp:spec.equipment_type,
+      gauge:10, jib:(area.heading_deg || 0) + 90, reach:28};
+    const yard = route(area, offsets);
+    return {...asset, ...describe(asset, spec), observed:false, yard, points:yard.map(p => yardToGeo(...p)), facility:area, area:area.name + ' · ' + zoneName(zoneOf(area.location))};
+  });
+  // Rail cranes registered with their rails in the ERP: observed by the portal feed under their ERP ID.
+  const railed = craneRailRows.filter(r => !used.has(r.equipment)).map(row => {
+    const station = row.station ? canonical(row.station) : null, area = station && layout.get(station);
+    const spec = equipmentSpecs.find(s => s.equipment === row.equipment);
+    const asset = {id:row.equipment, name:row.name || row.equipment, kind:'crane', erp:row.equipment_type, rail:true,
+      gauge:row.gauge_m, jib:row.jib_heading_deg, reach:row.equipment_type === '지브 크레인' ? 40 : 20, home:railHome(row.equipment),
+      boom:craneBooms.get(row.equipment)?.boom_m};
+    const yard = [[row.rail_x0, row.rail_y0], [row.rail_x1, row.rail_y1]];
+    return {...asset, ...describe(asset, spec), modelLabel:`${row.equipment_type} ${row.capacity_t} t (레일 주행)`, observed:true, yard,
+      points:yard.map(p => yardToGeo(...p)), facility:area || null,
+      area:area ? (DISPLAY_NAMES[area.location] || area.name) + ' · ' + zoneName(zoneOf(area.location)) : '레일'};
+  });
+  const railIds = new Set(railed.map(a => a.id));
+  monitoredAssets = [...observed, ...registered.filter(a => !railIds.has(a.id)), ...railed];
+  for (const button of document.querySelectorAll('[data-kind]')) {
+    button.onclick = () => {
+      assetKind = button.dataset.kind;
+      for (const tab of document.querySelectorAll('[data-kind]')) {
+        tab.setAttribute('aria-pressed',String(tab === button));
+      }
+      $('asset-log').replaceChildren();
+      $('signal').textContent = '● 모의 데이터';
+      latestSamples = new Map();
+      showAssetCategory();
+    };
+  }
+  const linked = monitoredAssets.find(asset => asset.id === linkParams.get('asset'));
+  if (linked) {
+    assetKind = linked.kind;
+    for (const tab of document.querySelectorAll('[data-kind]')) tab.setAttribute('aria-pressed', String(tab.dataset.kind === assetKind));
+  }
+  showAssetCategory(linked || null);
+  if (!monitoredAssets.length) $('signal').textContent = '시설 좌표가 없어 모의 장비를 배치할 수 없습니다.';
+  pollObservations();
+}
+
+window.addEventListener('hashchange', () => location.reload());
+
+if (monitoring) {
+  document.title = '장비 모니터링 · SIWS';
+  document.body.classList.add('equipment-mode');
+  $('monitor-heading').hidden = false;
+  $('monitor-log').hidden = false;
+  $('asset-panel').hidden = false;
+  $('facility-panel').hidden = true;
+  $('legend').hidden = true;
+  $('monitor-legend').hidden = false;
+}
+
 load().catch(error => {
-  $('summary').textContent = '시설 정보를 표시할 수 없습니다.';
+  $('stats').replaceChildren(node('p', '시설 정보를 표시할 수 없습니다.', 'muted'));
   $('status').textContent = error.message;
+  if (monitoring) $('signal').textContent = error.message;
 });
 </script>
 </body>

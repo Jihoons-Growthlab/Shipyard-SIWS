@@ -1,7 +1,45 @@
-# 오브젝트 검색
+# 통합검색
 
-- 좌측 내비게이션 패널에 ‘오브젝트 검색’ 입력창과 결과 목록을 둔다. 초기 범위는 탑재 블록, 도크·시설, 크레인이다.
-- 표시 이름과 ID를 검색하고, 입력 앞뒤 공백과 영문 대소문자 차이를 무시한다. 빈 검색어에는 결과를 숨기고 매칭 항목이 없으면 ‘검색 결과 없음’을 표시한다.
-- 오브젝트 생성 시 기존 데이터 ID와 씬 대상을 연결한다. 입력마다 전체 씬을 순회하지 않는다. 표시 중인 결과를 선택하면 기존 카메라를 대상으로 이동한다. 탑재 전 블록 등 현재 볼 수 없는 대상은 목록에서 상태를 보여주고 재생 시점은 유지한다.
-- 먼저 `Authoring/Dashboard.uxml`, `Runtime/Dashboard/ErectionPanelView.cs`, `Runtime/Erection/ShipView.cs`, `Runtime/Interaction/OrbitCameraRig.cs`를 확인한다. 시설·크레인 확장 시 `Runtime/Yard/YardEnvironment.cs`, `Runtime/Erection/GantryCraneView.cs`를 읽는다. 검색과 결과 UI는 `Runtime/Dashboard/DashboardObjectSearch.cs`를 분리 후보로 둔다.
-- 확인 기준은 블록 ID와 시설명 부분 검색, 결과 없음 표시, 선택 시 카메라 이동, 입력 중 단축키 미작동, 탑재 재생 상태 유지다.
+## 화면
+
+- 좌측 레일의 첫 메뉴인 돋보기 "통합검색"(`nav-search`)을 누르면 통합검색 서랍(`search-panel`, 제목 "통합검색")이 열린다. 블록 탑재와 같은 서랍 자리·애니메이션을 쓰고, 한 번에 서랍 하나만 열린다. 세로 화면에서는 아래쪽 시트로 열린다.
+- 검색창(돋보기 아이콘, 안내 문구 "명칭·호선번호(SN)·ID", 지우기 버튼)에 명칭, 호선번호(예: `sn`, `SN2040`), ID 일부를 입력하면 결과 카드가 실시간으로 바뀐다. 글자를 입력할 때마다 90 ms 짧은 대기 후 조회한다. 어떤 관련 대상을 어떤 순서로 보여 줄지는 `YardObjectSearch`가 정한다.
+- 카드 구성:
+  - 분류별 아이콘 타일: 호선·블록·크레인·차량/중장비·도크·안벽·건물(`DashboardIcon` 벡터). 외부 이미지와 3D 미리보기는 쓰지 않는다.
+  - 이름: 일치한 부분을 강조한다.
+  - ID와 종류.
+  - 보조 정보: 약 두 줄까지 보이고 나머지는 말줄임으로 자른다.
+  - 별도의 보기 버튼이나 배지는 없다. 카드 전체가 버튼이다. 지금 화면에 없는 대상만 "화면에 없음" 칩을 표시한다.
+- 빈 검색어에는 카드 대신 통합검색 안내(명칭·호선번호 SN·ID 예시)를 표시한다. 매칭이 없으면 "검색 결과 없음"과 함께 명칭이나 호선번호 일부로 다시 검색하라는 안내를 표시한다.
+- 결과 줄에는 건수와 함께 상위 40건 제한, 지금 화면에 없는 대상 수를 표시한다.
+- 카드를 클릭·탭하거나 포커스된 카드에서 Enter·Space를 누르면 `YardObjectSearch.Open`이 카메라를 대상으로 부드럽게 이동하고 기존 상세 팝업과 선택 하이라이트를 연다. 성공하면 검색 서랍을 접어 장면과 팝업이 보이게 한다. 검색어와 결과는 다음에 열 때 남아 있다.
+- "화면에 없음" 카드(탑재 전 블록, 숨긴 레이어 등)는 고르면 카드가 살짝 흔들리고 상태 문구로 이유를 알린다. 날짜와 재생 상태는 바꾸지 않는다.
+- 결과가 열려 있는 동안에는 2.5초마다 다시 조회해 같은 카드 요소를 제자리에서 갱신한다. 그래서 키보드 포커스와 스크롤 위치가 유지되고, 누르거나 끄는 중에는 갱신하지 않는다.
+- 터치:
+  - 10 px 이내로 눌렀다 떼면 선택으로 보고, 그보다 끌면 목록이 스크롤된다.
+  - 데스크톱은 서랍을 열 때 바로 입력할 수 있다. 터치 화면은 검색창을 탭해야 키보드가 뜬다.
+- 키:
+  - Enter: 화면에 있는 첫 결과를 연다.
+  - ↓: 카드로 이동하고, 첫 카드에서 ↑는 검색창으로 돌아온다.
+  - Enter·Space: 포커스된 카드를 연다.
+  - Esc: 검색어를 지우고, 빈 검색어면 서랍을 닫는다.
+  - 입력 직후 90 ms 안에 Enter·↓를 누르면 예약 검색을 취소하고 현재 입력으로 바로 다시 조회한 뒤 동작한다.
+
+## 연동
+
+- 검색은 트윈에 로드된 ERP 야드 모델과 현재 장면을 함께 조회한다. 선박명·ERP 호선 명칭·호선번호(SN)로 호선과 소속 블록을 찾는다. 호선번호는 대소문자, 공백, 하이픈이 달라도 찾을 수 있다. 검색 결과는 입력에 따라 갱신되며, ERP 원본 데이터는 트윈을 열거나 새로고침할 때 다시 불러온다.
+
+| 역할 | 위치 |
+| --- | --- |
+| 검색 데이터, 열기(카메라·상세·하이라이트) | `Runtime/Interaction/YardObjectSearch.cs` (`Find(model, query, 40)`, `Open(result)`; 모델 `ShipView.Model`) |
+| 서랍 UI·카드·키·터치 | `Runtime/Dashboard/DashboardObjectSearch.cs` |
+| 서랍 열기·접기, 포커스 상태 | `Runtime/Dashboard/DashboardShellView.cs` |
+| 아이콘 | `Runtime/Dashboard/DashboardIcon.cs` (`search`, `block`, `hull`, `vehicle`, `facility`, `building`) |
+| 레이아웃·스타일 | `Authoring/Dashboard.uxml` (`nav-search`, `search-panel`), `Authoring/Dashboard.uss` (`tw-search-*`) |
+| 테스트 | `Tests/Editor/DashboardSearchTests.cs`, 검색 데이터는 `YardSearchIndexTests.cs` |
+
+- `DashboardShellView`의 포커스 속성:
+  - `SearchFieldFocused`: 검색창이 키보드를 받는 동안만 true다. Escape 처리에 쓴다.
+  - `SearchControlsFocused`: 검색 서랍 안의 무엇이든(검색창, 카드, 버튼) 포커스를 가진 동안 true다. 카메라 단축키 차단에 쓴다(`OrbitCameraRig`).
+- 캡처용 명령행 인수: `-shipyard-search <검색어>`. 야드가 준비되면 서랍을 열고 그 검색어로 조회한다.
+- 확인 기준: 블록 ID와 시설명 부분 검색, 결과 없음 표시, 선택 시 카메라 이동과 상세 팝업, 입력 중 단축키 미작동, 탑재 재생 상태 유지.

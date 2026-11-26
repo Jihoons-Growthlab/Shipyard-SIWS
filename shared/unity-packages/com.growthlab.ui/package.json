@@ -1,8 +1,8 @@
 {
   "name": "com.growthlab.ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "GrowthLab UI",
-  "description": "UI Toolkit building blocks for dashboards: Gauge, StatusBadge, StatCard, MessageList, world-anchored labels, a dark theme, and a command-line screenshot hook for automated checks.",
+  "description": "UI Toolkit building blocks for dashboards: Gauge, StatusBadge, StatCard, MessageList, charts (bar, line, timeline, donut from declarative specs), world-anchored labels, a dark theme, and a command-line screenshot hook for automated checks.",
   "unity": "6000.3",
   "keywords": ["ui", "ui toolkit", "dashboard", "gauge"],
   "dependencies": {
