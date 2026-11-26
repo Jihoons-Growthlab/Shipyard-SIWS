@@ -412,6 +412,7 @@ class ShipYardTest(unittest.TestCase):
         self.api('quay_shifts', shift)
         self.assertIn('SEA-TRIAL', [row['id'] for row in self.api('shift_points')])
         points = {row['id']: row for row in self.api('shift_points')}
+        self.assertEqual(points['Q1-A']['quay'], 'QUAY')
         self.assertFalse(points['Q1-A']['position_known'])
         self.assertIsNone(points['Q1-A']['position'])
         position = {'id': 'Q1-A', 'x': -12.5, 'y': 0, 'z': 3, 'heading_deg': 90.5}

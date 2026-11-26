@@ -219,7 +219,8 @@ namespace ShipyardTwin
     [Serializable]
     public sealed class ShiftPointRow
     {
-        public string id, name, kind;
+        /// <summary><c>quay</c>: the quay facility (location id) a 선석 lies along; null for docks, sea points and older ERPs.</summary>
+        public string id, name, kind, quay;
         public bool position_known;
         public ShiftPointPosition position;
     }
