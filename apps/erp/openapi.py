@@ -51,6 +51,8 @@ def field_schema(app, key):
              'kind': ['야드', '작업장', '도크', '안벽', '창고'], **app.CHOICES}
     if key in fixed:
         return {'type': 'string', 'enum': list(fixed[key])}
+    if key in {'actual_start_at', 'actual_end_at'}:
+        return {'type': 'string', 'description': '한국시간 YYYY-MM-DDTHH:mm', 'example': '2026-11-16T08:30'}
     if key in app.DATE_KEYS:
         return {'type': 'string', 'format': 'date', 'example': '2026-11-16'}
     if key in app.planning.MEASURES or key in app.FLOAT_KEYS:

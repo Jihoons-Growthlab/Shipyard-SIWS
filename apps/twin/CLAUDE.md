@@ -10,6 +10,7 @@
 - 검증 명령:
   - `tools/test.sh`(EditMode)
   - `tools/build.sh`(macOS 앱)
+  - `tools/build-web.sh`(WebGL, Portal `/twin/`에서 Mac·Windows·iPhone 브라우저로 실행)
   - `tools/capture.sh <일> <png> [overview|bow|stern|crane|top]`(화면 캡처)
   - 파이프라인은 README.md의 "데이터 갱신" 절차를 따른다.
 - ERP 계정, 토큰 등 비밀은 파일이나 로그에 남기지 않는다. 환경변수로만 쓴다.

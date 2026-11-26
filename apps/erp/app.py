@@ -3,6 +3,7 @@ import json
 import math
 import os
 import sqlite3
+import threading
 from contextlib import closing, contextmanager
 from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -16,14 +17,17 @@ import geometry
 import lots
 import menus
 import openapi
+import outfitting
 import planning
 import procurement
 import production
 import quality
 import resources
+import results
 import search
 import storage
 import traceability
+import yardsim
 import shipbuilding
 import sys
 import yardplan
@@ -65,7 +69,7 @@ FIELDS = {
     'forecast': ('id', 'forecast', 'reason'),
     'plans': ('start',),
     'orders': ('id', 'activity', 'cadence', 'day', 'instruction', 'parent', 'plan_id'),
-    'results': ('id', 'actual', 'result', 'inspection', 'reason'),
+    'results': ('id', 'actual', 'result', 'inspection', 'reason') + results.DETAIL_FIELDS,
     'moves': ('id', 'block', 'equipment', 'destination'),
     'confirm': ('id',),
     'telemetry': ('move', 'x', 'y', 'load', 'status'),
@@ -74,17 +78,17 @@ FIELDS.update(shipbuilding.FIELDS)
 traceability.PREFIXES.update(shipbuilding.PREFIXES)
 FIELDS.update(planning.FIELDS)
 FIELDS.update(procurement.FIELDS)
-SCHEMA += shipbuilding.SCHEMA + planning.SCHEMA + procurement.SCHEMA + traceability.SCHEMA
+SCHEMA += shipbuilding.SCHEMA + planning.SCHEMA + procurement.SCHEMA + traceability.SCHEMA + results.SCHEMA
 READS = shipbuilding.READS | {'inventory_ledger', 'production_results'} | set(procurement.FIELDS) | set(planning.FIELDS) | {'mrp', 'aps'} | {'hulls', 'locations', 'blocks', 'equipment', 'activities', 'plans', 'orders', 'moves', 'telemetry'}
 # Shipyard extensions: assembly stages/man-hours, crane & dock constraints, steel lots, ITP/NCR/punch, roles & audit.
-EXTENSIONS = (production, resources, lots, quality, geometry, yardplan, stockplan, bom, auth)
+EXTENSIONS = (production, resources, lots, quality, geometry, yardplan, outfitting, stockplan, bom, auth)
 OPTIONAL = {'block', 'location', 'parent', 'reason', 'predecessor', 'plan_id'}
-ACTION_OPTIONAL = {}
+ACTION_OPTIONAL = {'results': {'reason', *results.DETAIL_FIELDS}}
 DATE_KEYS = {'baseline', 'forecast', 'start', 'day', 'actual', 'delivery', 'receipt_day', 'need_day', 'earliest',
              'promised_day'}
-CHOICES = {}
+CHOICES = {'shift_code': results.SHIFTS, 'output_unit': results.UNITS}
 # Free-precision finite numbers (telemetry metres/tonnes, latitude/longitude): no fixed decimal places.
-FLOAT_KEYS = {'x', 'y', 'load'}
+FLOAT_KEYS = {'x', 'y', 'load', 'output_qty', 'labor_mh'}
 for module in EXTENSIONS:
     SCHEMA += module.SCHEMA
     FIELDS.update(module.FIELDS)
@@ -97,7 +101,7 @@ for module in EXTENSIONS:
     planning.SIGNED.update(getattr(module, 'SIGNED', set()))
     CHOICES.update(module.CHOICES)
     FLOAT_KEYS |= getattr(module, 'FLOATS', set())
-shipbuilding.EXTRA_BLOCKERS[:] = [production.blockers, resources.blockers, quality.blockers]
+shipbuilding.EXTRA_BLOCKERS[:] = [production.blockers, resources.blockers, quality.blockers, outfitting.erection_blockers]
 production.STAGE_CHECKS[:] = [bom.stage_gate]
 MENU_ROUTES, MENU_ACTIONS = menus.build(FIELDS)
 LOCAL_NO_LOGIN = False
@@ -158,6 +162,8 @@ def activity_view(row):
 
 
 def read(db, table):
+    if table == "production_results":
+        return results.read(db)
     if table == "block_readiness":
         return shipbuilding.readiness(db)
     for module in EXTENSIONS:
@@ -240,7 +246,10 @@ def write(db, action, data, actor=None):
     if action == 'milestone_update' and v['actual']:
         milestone = lookup(db, 'hull_milestones', v['id'])
         if milestone['actual'] != v['actual']:
-            production.milestone_gate(db, milestone['hull'], milestone['milestone'], require)
+            require(v['actual'] <= date.today().isoformat(), '실적일은 오늘 이후일 수 없습니다.')
+            shipbuilding.check_milestone_order(db, milestone, v['actual'], require)
+            production.milestone_gate(db, milestone['hull'], milestone['milestone'], v['actual'], require)
+            outfitting.milestone_gate(db, milestone['hull'], milestone['milestone'], v['actual'], require)
             quality.milestone_gate(db, milestone['hull'], milestone['milestone'], require)
     for module in EXTENSIONS:
         if action in module.FIELDS:
@@ -343,9 +352,11 @@ def write(db, action, data, actor=None):
         bom.link_new_order(db, sys.modules[__name__], key)
         return key
     if action == 'results':
+        details = results.validate(db, v, sys.modules[__name__])
         order = lookup(db, 'orders', v['id'])
         require(order['inspection'] != '합격', '이미 합격한 작업지시입니다.')
         require(v['inspection'] in {'합격', '불합격'}, '검사 결과를 선택하세요.')
+        require(not order['actual'] or order['actual'] <= v['actual'], '재검사일은 이전 실적일 이후여야 합니다.')
         children = list(db.execute('SELECT actual, inspection FROM orders WHERE parent=?', (v['id'],)))
         if v['inspection'] == '합격':
             procurement.require_issued(db, order, v['actual'], require)
@@ -369,8 +380,11 @@ def write(db, action, data, actor=None):
             if v['inspection'] == '불합격':
                 db.execute("UPDATE activities SET inspection='불합격' WHERE id=?", (order['activity'],))
         number = traceability.document_number(db, 'production_results')
-        return insert(db, 'production_results', id=number, work_order=v['id'], actual=v['actual'],
-                      result=v['result'], inspection=v['inspection'], reason=v['reason'], recorded_at=now())
+        results.ensure_lot(db, insert, order['id'])
+        insert(db, 'production_results', id=number, work_order=order['id'], actual=v['actual'],
+               result=v['result'], inspection=v['inspection'], reason=v['reason'], recorded_at=now())
+        insert(db, 'production_result_details', result_id=number, recorded_by=actor, **details)
+        return number
     if action == 'moves':
         block = lookup(db, 'blocks', v['block'])
         require(block['location'] != v['destination'], '출발지와 목적지가 같을 수 없습니다.')
@@ -539,6 +553,21 @@ class Handler(BaseHTTPRequestHandler):
             if table == 'me':
                 self.send(200, {'id': user['id'], 'name': user['name'], 'group_id': user['group_id'], **granted})
                 return
+            if table == 'crane_activity':
+                # Rail jib cranes now (or ?at=ISO time) from the ERP crane plan: the twin and the equipment monitor read it.
+                require({'crane_rails', 'crane_assignments'}.issubset(granted['routes']), '크레인 레일과 크레인 배정을 조회할 권한이 필요합니다.')
+                at = parse_qs(parts.query).get('at', [None])[0]
+                moment = datetime.fromisoformat(at) if at else datetime.now(yardsim.KST)
+                moment = moment if moment.tzinfo else moment.replace(tzinfo=yardsim.KST)
+                rows = {route: json.loads(cached_rows(route)[0]) if route in granted['routes'] else []
+                        for route in ('equipment_specs', 'equipment', 'crane_rails', 'crane_assignments', 'crane_kinematics', 'crane_lifts',
+                                      'crane_load_charts')}
+                self.send(200, yardsim.crane_activity(rows, moment))
+                return
+            if table == 'yard_sim':
+                yard_sim_access(granted)
+                self.send(200, yardsim.current() or {'scenario': None})
+                return
             if table not in READS:
                 self.send(404, {'error': '조회 항목을 찾을 수 없습니다.'})
                 return
@@ -580,8 +609,43 @@ class Handler(BaseHTTPRequestHandler):
         require(isinstance(data, dict), 'JSON 객체가 필요합니다.')
         return data
 
+    def yard_sim_post(self):
+        """POST /api/yard_sim: {"action": "open", "hull", "start"?, "end"?, "days_per_second"?} or play / pause /
+        speed (value) / seek (value: ISO time) / restart / close. Changes only the in-memory replay session."""
+        try:
+            user = self.user()
+            granted = user_access(user)
+            yard_sim_access(granted)
+            data = self.body()
+            action = data.get('action')
+            if action == 'open':
+                hull = data.get('hull')
+                require(isinstance(hull, str) and hull, '재생할 호선을 지정하세요.')
+                days = data.get('days_per_second')
+                require(days is None or (isinstance(days, (int, float)) and 0 < days <= 60), '초당 일수를 확인하세요.')
+                state = yardsim.open_session(hull, yard_sim_rows(granted), data.get('start'), data.get('end'), days,
+                                             keep=not data.get('reset'))
+            elif action == 'close':
+                yardsim.close()
+                state = {'scenario': None}
+            else:
+                state = yardsim.control(action, data.get('value'))
+            self.send(200, state)
+        except auth.AuthError as exc:
+            self.send(401, {'error': str(exc)})
+        except PermissionError as exc:
+            self.send(403, {'error': str(exc)})
+        except (ValueError, TypeError) as exc:
+            self.send(400, {'error': str(exc)})
+        except cache.STORE_ERRORS + storage.DATABASE_ERRORS as exc:
+            self.log_error('%s', exc)
+            self.send(503, {'error': '저장소를 사용할 수 없습니다. 잠시 후 다시 시도하세요.'})
+
     def do_POST(self):
         action = urlsplit(self.path).path[5:]
+        if action == 'yard_sim' and self.path.startswith('/api/'):
+            self.yard_sim_post()
+            return
         if not self.path.startswith('/api/') or (action not in FIELDS and action not in SPECIAL_POSTS):
             self.send(404, {'error': '입력 항목을 찾을 수 없습니다.'})
             return
@@ -637,6 +701,18 @@ class Handler(BaseHTTPRequestHandler):
             self.send(201, {'id': key})
 
 
+def yard_sim_access(granted):
+    """The shared replay reads the yard plan: whoever may read the erection, stocking and crane plans may watch and
+    steer it (it writes nothing)."""
+    if not set(yardsim.REQUIRED).issubset(granted['routes']):
+        raise PermissionError('탑재·적치·크레인 계획을 조회할 권한이 있어야 야드 재생을 볼 수 있습니다.')
+
+
+def yard_sim_rows(granted):
+    """ERP rows the replay is built from (cached route reads); routes this user cannot read are empty."""
+    return {route: json.loads(cached_rows(route)[0]) if route in granted['routes'] else [] for route in yardsim.ROUTES}
+
+
 def connect_store():
     """Use Redis when SHIPYARD_REDIS_URL is set; PostgreSQL mode requires it."""
     url = os.environ.get('SHIPYARD_REDIS_URL')
@@ -672,7 +748,9 @@ if __name__ == '__main__':
         if not DATABASE_URL:
             storage.begin_write(db)
         geometry.upgrade_location_footprints(db)
+        geometry.upgrade_crane_kinematics(db)
         traceability.upgrade(db, insert, now())
+        results.upgrade(db, insert)
         auth.ensure_groups(db, insert)
         if not args.empty:
             seed(db)
@@ -681,6 +759,14 @@ if __name__ == '__main__':
         with closing(connect()) as db:
             if not db.execute('SELECT 1 FROM accounts LIMIT 1').fetchone():
                 print('관리자 계정이 없습니다: python3 create_admin.py --db <파일> 로 먼저 만드세요.', flush=True)
-    with ThreadingHTTPServer(('127.0.0.1', args.port), Handler) as server:
-        print(f'http://127.0.0.1:{server.server_port}', flush=True)
-        server.serve_forever()
+    bind_hosts = [h.strip() for h in os.environ.get('SHIPYARD_BIND_HOSTS', '127.0.0.1').split(',') if h.strip()]
+    servers = [ThreadingHTTPServer((host, args.port), Handler) for host in bind_hosts]
+    try:
+        for server in servers:
+            print(f'http://{server.server_address[0]}:{server.server_port}', flush=True)
+        for server in servers[1:]:
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+        servers[0].serve_forever()
+    finally:
+        for server in servers:
+            server.server_close()

@@ -88,15 +88,18 @@ namespace ShipyardTwin
         public bool Finished => Cursor >= Duration;
 
         /// <summary>0 = not started, between 0 and 1 = being lifted, 1 = erected.</summary>
-        public float Progress(Entry entry)
+        public float Progress(Entry entry) => ProgressAt(entry, Cursor);
+
+        /// <summary><see cref="Progress"/> at any cursor, without moving this schedule's cursor (yard calendar).</summary>
+        public static float ProgressAt(Entry entry, float cursor)
         {
             var begin = entry.FinishDay - entry.LiftDays;
-            if (Cursor <= begin)
+            if (cursor <= begin)
             {
                 return 0f;
             }
 
-            return Cursor >= entry.FinishDay ? 1f : (Cursor - begin) / entry.LiftDays;
+            return cursor >= entry.FinishDay ? 1f : (cursor - begin) / entry.LiftDays;
         }
 
         /// <summary>Moves the cursor (clamped to 0..Duration) and returns blocks erected by this move, in order.</summary>
@@ -169,32 +172,50 @@ namespace ShipyardTwin
         }
     }
 
-    /// <summary>Play / pause / speed state shared by the 3D view, crane and panel.</summary>
+    /// <summary>
+    /// Play / pause / speed state shared by the 3D view, crane and panel. With <see cref="Remote"/> set the shared ERP
+    /// replay owns the clock: play, pause, speed, seek and restart are sent there and <see cref="SyncFrom"/> applies what it
+    /// reports; <see cref="Tick"/> then does nothing.
+    /// </summary>
     public sealed class ErectionPlayback
     {
         public static readonly float[] Speeds = { 1f, 2f, 4f, 8f };
+
+        private bool _playing;
 
         public ErectionPlayback(ErectionSchedule schedule, float daysPerSecond, bool playing)
         {
             Schedule = schedule;
             DaysPerSecond = daysPerSecond;
-            Playing = playing;
+            _playing = playing;
         }
 
         public ErectionSchedule Schedule { get; }
 
-        public bool Playing { get; set; }
+        /// <summary>Shared replay control: (action, value) with action play / pause / speed / seek / restart.</summary>
+        public Action<string, string> Remote { get; set; }
+
+        public bool Playing
+        {
+            get => _playing;
+            set
+            {
+                if (Remote != null && value != _playing) Remote(value ? "play" : "pause", null);
+                _playing = value;
+            }
+        }
 
         /// <summary>Simulation days per real second at speed ×1.</summary>
         public float DaysPerSecond { get; }
 
         public float SpeedMultiplier { get; private set; } = 1f;
+        internal int PositionRevision { get; private set; }
 
         public event Action<ErectionSchedule.Entry> BlockErected;
 
         public void Tick(float seconds)
         {
-            if (!Playing)
+            if (!_playing || Remote != null)
             {
                 return;
             }
@@ -202,23 +223,56 @@ namespace ShipyardTwin
             Publish(Schedule.Advance(seconds * DaysPerSecond * SpeedMultiplier));
             if (Schedule.Finished)
             {
-                Playing = false;
+                _playing = false;
             }
         }
 
-        public void Seek(float cursor) => Publish(Schedule.Seek(cursor));
+        public void Seek(float cursor)
+        {
+            if (Remote != null)
+            {
+                Remote("seek", Schedule.Start.AddDays(cursor).ToString("yyyy-MM-ddTHH:mm:ss") + "+09:00");
+                return;
+            }
+
+            PositionRevision++;
+            Publish(Schedule.Seek(cursor));
+        }
 
         public void Restart()
         {
+            if (Remote != null)
+            {
+                Remote("restart", null);
+                return;
+            }
+
+            PositionRevision++;
             Schedule.Seek(0f);
-            Playing = true;
+            _playing = true;
         }
 
         public float NextSpeed()
         {
-            var index = Array.IndexOf(Speeds, SpeedMultiplier);
-            SpeedMultiplier = Speeds[(index + 1) % Speeds.Length];
+            var next = Speeds.FirstOrDefault(value => value > SpeedMultiplier);
+            return SetSpeed(next > 0f ? next : Speeds[0]);
+        }
+
+        public float SetSpeed(float multiplier)
+        {
+            var next = Math.Max(0.05f, Math.Min(32f, multiplier));
+            if (Math.Abs(SpeedMultiplier - next) < 0.00001f) return SpeedMultiplier;
+            Remote?.Invoke("speed", next.ToString("R", CultureInfo.InvariantCulture));
+            SpeedMultiplier = next;
             return SpeedMultiplier;
+        }
+
+        /// <summary>The shared replay's clock: cursor (days from <see cref="ErectionSchedule.Start"/>), play state, speed.</summary>
+        public void SyncFrom(float cursor, bool playing, float speed)
+        {
+            _playing = playing;
+            SpeedMultiplier = speed;
+            Publish(Schedule.Seek(cursor));
         }
 
         private void Publish(IReadOnlyList<ErectionSchedule.Entry> erected)
@@ -227,6 +281,75 @@ namespace ShipyardTwin
             {
                 BlockErected?.Invoke(entry);
             }
+        }
+    }
+}
+
+namespace ShipyardTwin
+{
+    /// <summary>
+    /// Clock of the yard calendar playback (no hull selected): every hull's shops, stays, lifts, launch, berth and delivery
+    /// at one calendar time that runs from <see cref="Start"/> to <see cref="End"/> and loops back to the start.
+    /// </summary>
+    public sealed class YardCalendar
+    {
+        public static readonly float[] Speeds = { 0.25f, 0.5f, 1f, 2f, 4f, 8f };
+
+        public YardCalendar(DateTime start, DateTime end, DateTime now, float daysPerSecond)
+        {
+            Start = start;
+            End = end > start ? end : start.AddDays(1);
+            DaysPerSecond = daysPerSecond;
+            Time = now < Start || now >= End ? Start : now;
+        }
+
+        public DateTime Start { get; }
+        public DateTime End { get; }
+        public DateTime Time { get; private set; }
+
+        /// <summary>Calendar days per real second at ×1.</summary>
+        public float DaysPerSecond { get; }
+
+        public float SpeedMultiplier { get; set; } = 1f;
+        public bool Playing { get; set; } = true;
+
+        /// <summary>Completed loops over the range.</summary>
+        public int Cycle { get; private set; }
+        internal int PositionRevision { get; private set; }
+
+        public float Fraction => (float)((Time - Start).TotalDays / (End - Start).TotalDays);
+
+        public void Tick(float seconds)
+        {
+            if (Playing && seconds > 0f)
+            {
+                Advance(seconds * DaysPerSecond * SpeedMultiplier);
+            }
+        }
+
+        public void Advance(double days)
+        {
+            var next = Time.AddDays(days);
+            if (next >= End)
+            {
+                Cycle++;
+                PositionRevision++;
+                next = Start.AddDays((next - End).TotalDays % (End - Start).TotalDays);
+            }
+
+            Time = next;
+        }
+
+        public void Seek(DateTime time)
+        {
+            PositionRevision++;
+            Time = time < Start ? Start : time >= End ? End.AddSeconds(-1) : time;
+        }
+
+        public void NextSpeed()
+        {
+            var i = Array.IndexOf(Speeds, SpeedMultiplier);
+            SpeedMultiplier = Speeds[(i + 1) % Speeds.Length];
         }
     }
 }

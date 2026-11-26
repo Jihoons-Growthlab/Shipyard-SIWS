@@ -43,29 +43,29 @@ namespace ShipyardTwin
             var output = subject;
             for (var i = 0; i < clip.Count && output.Count > 0; i++)
             {
-                Vector2 a = clip[i], b = clip[(i + 1) % clip.Count];
-                bool Inside(Vector2 p) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x) >= 0;
-                Vector2 Cut(Vector2 p, Vector2 q)
-                {
-                    var d1 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-                    var d2 = (b.x - a.x) * (q.y - a.y) - (b.y - a.y) * (q.x - a.x);
-                    return p + (q - p) * (d1 / (d1 - d2));
-                }
+                output = KeepLeft(output, clip[i], clip[(i + 1) % clip.Count]);
+            }
 
-                var input = output;
-                output = new List<Vector2>();
-                for (var j = 0; j < input.Count; j++)
+            return output;
+        }
+
+        /// <summary>Keeps the part of a polygon left of the directed line a→b (the inside of a counter-clockwise edge).</summary>
+        public static List<Vector2> KeepLeft(List<Vector2> input, Vector2 a, Vector2 b)
+        {
+            float Side(Vector2 p) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+            var output = new List<Vector2>();
+            for (var j = 0; j < input.Count; j++)
+            {
+                Vector2 p = input[j], q = input[(j + 1) % input.Count];
+                float dp = Side(p), dq = Side(q);
+                if (dq >= 0)
                 {
-                    Vector2 p = input[j], q = input[(j + 1) % input.Count];
-                    if (Inside(q))
-                    {
-                        if (!Inside(p)) output.Add(Cut(p, q));
-                        output.Add(q);
-                    }
-                    else if (Inside(p))
-                    {
-                        output.Add(Cut(p, q));
-                    }
+                    if (dp < 0) output.Add(p + (q - p) * (dp / (dp - dq)));
+                    output.Add(q);
+                }
+                else if (dp >= 0)
+                {
+                    output.Add(p + (q - p) * (dp / (dp - dq)));
                 }
             }
 
@@ -105,6 +105,77 @@ namespace ShipyardTwin
 
             return best;
         }
+
+        /// <summary>Convex pieces covering a convex polygon minus a convex counter-clockwise hole (empty pieces dropped).</summary>
+        public static List<List<Vector2>> Subtract(List<Vector2> subject, List<Vector2> hole)
+        {
+            var pieces = new List<List<Vector2>>();
+            var rest = subject;
+            for (var i = 0; i < hole.Count && rest.Count >= 3; i++)
+            {
+                Vector2 a = hole[i], b = hole[(i + 1) % hole.Count];
+                var outside = Clean(KeepLeft(rest, b, a));
+                if (outside.Count >= 3 && Area(outside) > 0.01f)
+                {
+                    pieces.Add(outside);
+                }
+
+                rest = KeepLeft(rest, a, b);
+            }
+
+            return pieces;
+        }
+
+        /// <summary>
+        /// Drops repeated points (within 1 cm) and points on a straight run, so a fan over the polygon has no
+        /// zero-area triangles (those leave zero normals, which shade as NaN in WebGL).
+        /// </summary>
+        public static List<Vector2> Clean(List<Vector2> polygon)
+        {
+            var points = new List<Vector2>(polygon);
+            for (var changed = true; changed && points.Count >= 3;)
+            {
+                changed = false;
+                for (var i = 0; i < points.Count && points.Count >= 3; i++)
+                {
+                    Vector2 a = points[(i + points.Count - 1) % points.Count], b = points[i], c = points[(i + 1) % points.Count];
+                    var cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+                    if ((b - a).sqrMagnitude < 1e-4f || Mathf.Abs(cross) < 1e-3f * Mathf.Max(1f, (c - a).magnitude))
+                    {
+                        points.RemoveAt(i);
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+
+            return points;
+        }
+
+        /// <summary>Signed area (positive when counter-clockwise).</summary>
+        public static float Area(List<Vector2> polygon)
+        {
+            var area = 0f;
+            for (var i = 0; i < polygon.Count; i++)
+            {
+                Vector2 a = polygon[i], b = polygon[(i + 1) % polygon.Count];
+                area += a.x * b.y - b.x * a.y;
+            }
+
+            return area / 2f;
+        }
+
+        /// <summary>Rotates a point about the origin (degrees, from +x toward +y).</summary>
+        public static Vector2 Rotate(Vector2 p, float degrees)
+        {
+            var a = degrees * Mathf.Deg2Rad;
+            float c = Mathf.Cos(a), s = Mathf.Sin(a);
+            return new Vector2(p.x * c - p.y * s, p.x * s + p.y * c);
+        }
+
+        /// <summary>Rectangle given in a frame centred on centre and turned by heading (x0..x1 along it), counter-clockwise.</summary>
+        public static List<Vector2> Oriented(Vector2 centre, float headingDeg, float x0, float x1, float y0, float y1) =>
+            Rect(x0, x1, y0, y1).Select(v => centre + Rotate(v, headingDeg)).ToList();
 
         public static List<Vector2> Rect(float x0, float x1, float y0, float y1) =>
             new List<Vector2> { new Vector2(x0, y0), new Vector2(x1, y0), new Vector2(x1, y1), new Vector2(x0, y1) };

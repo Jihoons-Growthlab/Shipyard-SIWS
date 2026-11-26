@@ -11,12 +11,14 @@
     { "Name": "Yard", "Components": ["YardEnvironment"] },
     { "Name": "SatelliteGround", "Components": ["SatelliteGround"] },
     { "Name": "Scenery", "Components": ["YardScenery"] },
+    { "Name": "RailCranes", "Components": ["RailCraneView"] },
     { "Name": "Ship", "Components": ["ShipView"] },
+    { "Name": "YardSim", "Components": ["YardSimSync"] },
     { "Name": "GoliathCrane", "Components": ["GantryCraneView"] },
     { "Name": "CameraRig", "Components": ["OrbitCameraRig"] },
     { "Name": "DepthMap", "Components": ["DepthMapOverlay"] }
   ],
   "Ui": [
-    { "Name": "Panel", "Uxml": "Dashboard.uxml", "Components": ["WorldLabels", "ErectionPanelView", "DashboardShellView", "HoverTooltipView"] }
+    { "Name": "Panel", "Uxml": "Dashboard.uxml", "Components": ["WorldLabels", "ErectionPanelView", "DashboardShellView", "HoverTooltipView", "ScheduleTimelineView", "CraneSafetyView", "ObjectDetailView", "YardClockView", "DashboardObjectSearch"] }
   ]
 }

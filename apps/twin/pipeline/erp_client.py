@@ -1,7 +1,7 @@
 """Minimal ShipYard-ERP API client (read side) for the twin pipeline.
 
 Environment: SHIPYARD_API_URL (HTTPS, or HTTP on localhost) and SHIPYARD_API_TOKEN, or
-SHIPYARD_API_USER + SHIPYARD_API_PASSWORD. Uploading generated data uses DataMigration/migrate.py.
+SHIPYARD_API_USER + SHIPYARD_API_PASSWORD. Uploading generated data uses tools/migration/migrate.py.
 """
 
 import json

@@ -71,14 +71,14 @@ def seed(db):
         return False
 
     for key, (name, kind, *_dimensions) in FACILITIES.items():
-        add('locations', id=key, name='트윈 실습 ' + name, kind=kind)
+        add('locations', id=key, name='트윈 ' + name, kind=kind)
 
     for key, kind, capacity, station in (
         (GANTRY, '갠트리 크레인', 250, OUT),
         (TRANSPORT, '트랜스포터', 350, YARD),
         (GOLIATH, '골리앗 크레인', 600, DOCK),
     ):
-        add('equipment', id=key, name='트윈 실습 ' + kind)
+        add('equipment', id=key, name='트윈 ' + kind)
         add('equipment_specs', equipment=key, equipment_type=kind,
             capacity_t=capacity, station=station)
 
@@ -89,7 +89,7 @@ def seed(db):
     def day(offset):
         return (monday + timedelta(days=offset)).isoformat()
 
-    add('hulls', id=HULL, name='디지털 트윈 실습 상선 (가상)')
+    add('hulls', id=HULL, name='디지털 트윈 상선 (가상)')
     add('vessel_details', hull=HULL, vessel_type='연안 화물선', vessel_name='Twin Demo 01',
         customer='가상 선주', length_m=120, beam_m=24, delivery=day(150))
     add('hull_geometry', hull=HULL, depth_m=12, draft_m=7, frame_spacing_m=0.6)

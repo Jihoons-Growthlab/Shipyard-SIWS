@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '/Users/hoon/Desktop/personal_project/SIWS/.codex/hooks/check.py'",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 '/Users/hoon/Desktop/personal_project/SIWS/.codex/hooks/check.py'",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

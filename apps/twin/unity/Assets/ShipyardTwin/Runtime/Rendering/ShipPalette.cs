@@ -53,7 +53,8 @@ namespace ShipyardTwin
             ["concrete"] = new Paint(new Color(0.50f, 0.50f, 0.49f), 0.06f),
             ["dock_floor"] = new Paint(new Color(0.38f, 0.38f, 0.37f), 0.05f),
             ["keel_block"] = new Paint(new Color(0.40f, 0.36f, 0.32f), 0.05f),
-            ["water"] = new Paint(new Color(0.09f, 0.22f, 0.30f), 0.85f),
+            // A rougher sea surface keeps the directional light from producing a bright, bloom-heavy sun glint.
+            ["water"] = new Paint(new Color(0.09f, 0.22f, 0.30f), 0.18f),
             ["shop_wall"] = new Paint(new Color(0.66f, 0.69f, 0.72f), 0.2f),
             ["shop_roof"] = new Paint(new Color(0.23f, 0.40f, 0.60f), 0.3f),
             ["rail"] = new Paint(new Color(0.30f, 0.30f, 0.32f), 0.6f, 0.8f),
@@ -89,6 +90,12 @@ namespace ShipyardTwin
             ["rock"] = new Paint(new Color(0.42f, 0.40f, 0.37f), 0.15f),
             ["riprap"] = new Paint(new Color(0.38f, 0.37f, 0.35f), 0.1f),
             ["bank"] = new Paint(new Color(0.50f, 0.46f, 0.39f), 0.06f),
+            // Site perimeter (YardEnvironment.Perimeter, SatelliteGround grass band): precast wall, verge and trees.
+            ["embankment"] = new Paint(new Color(0.37f, 0.45f, 0.29f), 0.04f),   // under the mottled concrete texture
+            ["fence"] = new Paint(new Color(0.78f, 0.78f, 0.75f), 0.12f),
+            ["fence_post"] = new Paint(new Color(0.58f, 0.60f, 0.60f), 0.15f),
+            ["tree_trunk"] = new Paint(new Color(0.30f, 0.23f, 0.17f), 0.05f),
+            ["tree_leaf"] = new Paint(new Color(0.17f, 0.30f, 0.15f), 0.08f),
             ["rim"] = new Paint(new Color(0.70f, 0.72f, 0.74f), 0.6f, 0.8f),
             ["grating"] = new Paint(new Color(0.30f, 0.31f, 0.33f), 0.3f, 0.5f),
         };
@@ -128,6 +135,7 @@ namespace ShipyardTwin
             ["wall_panel"] = Cladding, ["wall_rib"] = Cladding, ["roof"] = Cladding,
             ["concrete"] = Concrete, ["dock_floor"] = Concrete, ["keel_block"] = Concrete, ["wall_base"] = Concrete,
             ["rock"] = new Detail("concrete", 3f, 1.2f), ["riprap"] = new Detail("asphalt", 2f, 1.5f), ["bank"] = new Detail("concrete", 5f, 1.8f),
+            ["embankment"] = new Detail("concrete", 9f, 1.2f), ["fence"] = Concrete,
             ["asphalt"] = Asphalt, ["road"] = Asphalt,
             ["water"] = new Detail("water", 24f, 0.6f, albedo: false),
         };
@@ -180,6 +188,32 @@ namespace ShipyardTwin
             material.SetTextureScale(MainTexId, tiling);
         }
 
+        /// <summary>
+        /// Animated sea (Resources/ShipyardTwin/Shaders/Water: travelling waves, ripples, foam), coloured from the water
+        /// paint; null when the shader is unavailable, so the plain lit material is used instead.
+        /// </summary>
+        private static Material CreateSea(Paint paint)
+        {
+            var shader = Shader.Find("ShipyardTwin/Water");
+            if (shader == null || !shader.isSupported)
+            {
+                return null;
+            }
+
+            var material = new Material(shader) { name = "water" };
+            material.SetColor(BaseColorId, paint.Color);
+            material.SetColor(ShallowColorId, new Color(0.10f, 0.42f, 0.44f));   // light scattered through crests
+            var normal = Resources.Load<Texture2D>(TextureFolder + "water_normal");
+            if (normal != null)
+            {
+                material.SetTexture(BumpMapId, normal);
+            }
+
+            return material;
+        }
+
+        private static readonly int ShallowColorId = Shader.PropertyToID("_ShallowColor");
+
         /// <summary>New (unshared) material from the base, e.g. for a textured ground.</summary>
         public Material Create(string name)
         {
@@ -198,6 +232,12 @@ namespace ShipyardTwin
             }
 
             var paint = Paints[name];
+            if (name == "water" && CreateSea(paint) is Material sea)
+            {
+                _materials[name] = sea;
+                return sea;
+            }
+
             material = _base != null ? new Material(_base) : new Material(Shader.Find("Standard"));
             material.name = name;
             material.color = paint.Color;

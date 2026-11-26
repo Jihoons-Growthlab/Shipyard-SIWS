@@ -4,7 +4,7 @@
 
 Source: 공공데이터포털 "해양수산부 국립해양조사원_자연과학용 수심정보 조회" (data.go.kr 15142498,
 https://apis.data.go.kr/1192136/waterDepth/GetWaterDepthApiService, fields lat / lot / dpwt). Licence: KOGL Type 1
-(attribution). Key: BATHYMETRY_SERVICE_KEY from the environment, else read (only that line) from ShipyardTwin/.env.bathymetry.
+(attribution). Key: BATHYMETRY_SERVICE_KEY from the environment, else read (only that line) from apps/twin/.env.bathymetry.
 The key is used in request URLs only and never printed or written.
 
 Area: the satellite image extent (data/satellite/satellite.json, run fetch_satellite.py first).
@@ -45,7 +45,7 @@ def service_key():
             name, _, value = line.strip().partition('=')
             if name == 'BATHYMETRY_SERVICE_KEY':
                 return value.strip().strip('"\'')
-    raise SystemExit('BATHYMETRY_SERVICE_KEY가 없습니다. 환경변수로 주거나 ShipyardTwin/.env.bathymetry에 넣으세요.')
+    raise SystemExit('BATHYMETRY_SERVICE_KEY가 없습니다. 환경변수로 주거나 apps/twin/.env.bathymetry에 넣으세요.')
 
 
 def pixel_to_geo(zoom, px, py):

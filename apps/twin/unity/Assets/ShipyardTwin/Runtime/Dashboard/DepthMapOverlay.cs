@@ -17,6 +17,7 @@ namespace ShipyardTwin
     {
         public const float BandMetres = 2f;
         private const int TextureSize = 1536;
+        private static readonly int DepthMapVisibleId = Shader.PropertyToID("_ShipyardDepthMapVisible");
         private const float FillAlpha = 0.62f;
 
         /// <summary>Band colours, shallow to deep; index 0 is ground exposed at the datum (tidal flat, rock).</summary>
@@ -84,6 +85,7 @@ namespace ShipyardTwin
         private void OnDestroy()
         {
             if (_shell != null) _shell.DepthVisibleChanged -= SetVisible;
+            Shader.SetGlobalFloat(DepthMapVisibleId, 0f);
         }
 
         private static BathymetryMeta LoadMeta()
@@ -128,7 +130,9 @@ namespace ShipyardTwin
                 _sheet = BuildSheet();
             }
 
-            if (_sheet != null) _sheet.SetActive(visible);
+            var active = visible && _sheet != null;
+            if (_sheet != null) _sheet.SetActive(active);
+            Shader.SetGlobalFloat(DepthMapVisibleId, active ? 1f : 0f);
         }
 
         private GameObject BuildSheet()
@@ -242,8 +246,8 @@ namespace ShipyardTwin
             var grid = meta.grid;
             var cell = (double)meta.size_px / grid;
             var site = _twin.yard.site;
-            var pits = YardLayout.Docks(_twin).Select(d => Polygon2D.Rect(d.x - d.size_x_m / 2f - 8f, d.x + d.size_x_m / 2f + 8f,
-                d.y - d.size_y_m / 2f - 8f, d.y + d.size_y_m / 2f + 8f)).ToList();
+            var pits = YardLayout.Docks(_twin).Select(d => Polygon2D.Oriented(new Vector2(d.x, d.y), d.heading_deg,
+                -d.size_x_m / 2f - 8f, d.size_x_m / 2f + 8f, -d.size_y_m / 2f - 8f, d.size_y_m / 2f + 8f)).ToList();
             var vertices = new Vector3[n * n];
             var uvs = new Vector2[n * n];
             var yard = new Vector2[n * n];

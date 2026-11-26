@@ -1,9 +1,10 @@
 """Crane capacity, dock occupancy, working calendar and erection scheduling constraints."""
+import math
 from datetime import date, timedelta
 
 import production
 
-EQUIPMENT_TYPES = ['골리앗 크레인', '갠트리 크레인', '지브 크레인', '트랜스포터']
+EQUIPMENT_TYPES = ['골리앗 크레인', '갠트리 크레인', '지브 크레인', '트랜스포터', '지게차']
 LIFTING = {'골리앗 크레인', '갠트리 크레인', '지브 크레인'}
 CHOICES = {'equipment_type': EQUIPMENT_TYPES}
 SCHEMA = '''
@@ -97,6 +98,27 @@ def cranes(db):
     for row in db.execute('SELECT * FROM equipment_specs WHERE station IS NOT NULL ORDER BY capacity_t, equipment'):
         if row['equipment_type'] in LIFTING:
             by_station.setdefault(row['station'], []).append((row['capacity_t'], row['equipment']))
+    # A goliath whose registered rails straddle several docks (crane_rails, e.g. FLEET-GC over docks 4 and 5) also
+    # serves every other dock whose centre lies between its rails.
+    spans = db.execute('''SELECT r.*, s.capacity_t, s.station FROM crane_rails r JOIN equipment_specs s ON s.equipment=r.equipment
+        WHERE s.equipment_type IN ('골리앗 크레인', '갠트리 크레인')''').fetchall()
+    if spans:
+        docks = db.execute('''SELECT g.location, g.x, g.y FROM location_geometry g JOIN locations l ON l.id=g.location
+            WHERE l.kind='도크' ''').fetchall()
+        for rail in spans:
+            dx, dy = rail['rail_x1'] - rail['rail_x0'], rail['rail_y1'] - rail['rail_y0']
+            length = math.hypot(dx, dy)
+            if length <= 0:
+                continue
+            ux, uy = dx / length, dy / length
+            for dock in docks:
+                px, py = dock['x'] - rail['rail_x0'], dock['y'] - rail['rail_y0']
+                along, across = px * ux + py * uy, -px * uy + py * ux
+                serves = 0 <= along <= length and abs(across) < rail['gauge_m'] / 2
+                listed = by_station.setdefault(dock['location'], [])
+                if serves and dock['location'] != rail['station'] and all(e != rail['equipment'] for _, e in listed):
+                    listed.append((rail['capacity_t'], rail['equipment']))
+                    listed.sort()
     return by_station
 
 

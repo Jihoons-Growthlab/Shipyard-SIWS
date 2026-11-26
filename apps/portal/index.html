@@ -64,7 +64,7 @@ article:not(.monitor) .actions{margin-top:auto}
 .app-card{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;text-align:left;overflow:hidden;padding:0;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:0 3px 10px #12244209;min-width:0;font:inherit;text-decoration:none}
 .app-card[href]:hover,button.app-card:hover{filter:none;border-color:#7eaab1;box-shadow:0 7px 18px #183b5020;transform:translateY(-2px)}
 .app-cover{display:block;width:100%;height:146px;object-fit:cover;object-position:50% 46%;background:#17334c}
-.app-card:nth-child(2) .app-cover{object-fit:cover;object-position:33% 44%}
+.app-card:nth-child(2) .app-cover{object-position:50% 50%}
 .app-content{padding:14px 16px}
 .app-heading{display:flex;align-items:center;gap:8px}
 .small-symbol{display:grid;place-items:center;width:23px;height:23px;border-radius:5px;background:#e6f1f3;color:#075c67;font-size:15px}
@@ -114,10 +114,6 @@ main{width:min(100% - 40px,1230px);margin:24px auto 44px}
 .login-panel .login-wordmark{background:#102d40}
 .login-panel form button,.app-card{transition:background .15s,border-color .15s,box-shadow .15s}
 #home{display:grid;grid-template-columns:185px minmax(0,1fr);gap:25px}
-.operations-nav{position:sticky;top:16px;align-self:start;padding:4px 4px 0 0}
-.operations-nav h2{font-size:12px;color:#64798c;margin:0 0 8px 11px}
-.operations-nav a{display:block;text-align:left;color:#40586b;background:transparent;border:0;min-height:0;padding:10px 11px;margin:3px 0;border-radius:8px;font-size:14px}
-.operations-nav a:first-of-type,.operations-nav a:hover{background:#e1eef0;color:#00616f}
 .operations-main{min-width:0}
 .home-head{margin:0 0 10px}
 .home-hero{min-height:156px;border-radius:12px;margin-bottom:14px;box-shadow:none;background-position:center,center 53%}
@@ -128,28 +124,12 @@ main{width:min(100% - 40px,1230px);margin:24px auto 44px}
 .metric{background:#f7fafb;border-color:#e0e7ee}
 .metric strong{color:#08717d}
 #apps{grid-template-columns:repeat(auto-fill,minmax(min(100%,245px),1fr))}
-@media(max-width:700px){main{width:calc(100% - 28px)}#home{grid-template-columns:1fr;gap:12px}#signin{margin-top:18px}.yard-art{min-height:180px}.operations-nav{position:static;display:flex;gap:4px;flex-wrap:wrap;align-items:center}.operations-nav h2{margin:0 4px 0 0}.home-hero{padding:18px;min-height:138px}}
+@media(max-width:700px){main{width:calc(100% - 28px)}#home{grid-template-columns:1fr;gap:12px}#signin{margin-top:18px}.yard-art{min-height:180px}.home-hero{padding:18px;min-height:138px}}
 
 header{background:#fff;color:#203349;border-bottom:1px solid #dce5ed;height:64px}
 header .wordmark strong{color:#18374c}
 header .company span{color:#385568;border-color:#d5e0e7}
 .workspace-title{font-size:25px;margin:8px 0 11px}
-.monitor-tabs{display:flex;gap:2px;border-bottom:1px solid #d5e0e7;margin:0 0 14px}
-.monitor-tabs button{background:transparent;color:#52677b;border-radius:8px 8px 0 0;border:0;border-bottom:3px solid transparent;padding:10px 15px}
-.monitor-tabs button[aria-pressed=true]{background:#fff;border-bottom-color:#087e8b;color:#00616f}
-.filters{display:grid;grid-template-columns:1fr auto;align-items:end;gap:10px;padding:14px;background:#f5f7fa;border:1px solid #e1e8ef;border-radius:9px}
-.filters input{background:#fff;padding:8px}.filters label{font-size:12px}
-#move-status{margin:10px 0;font-size:13px}#move-status:empty{display:none}
-.table-scroll{overflow:auto;margin-top:12px;border:1px solid #e0e7ee;border-radius:8px}
-table{border-collapse:collapse;width:100%;white-space:nowrap;text-align:left}
-th,td{padding:10px 12px;border-bottom:1px solid #e2e9ef}
-th{background:#edf3f7;color:#4d6579;font-size:13px}td{font-size:13px}
-th button{min-height:0;padding:0;background:none;color:#08717d}
-tbody tr:nth-child(even){background:#f8fafb}
-.move-pagination{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px;font-size:13px}
-.move-pagination button{min-height:30px;padding:4px 10px}
-@media(max-width:480px){.filters{grid-template-columns:1fr}.filters button{justify-self:start}}
-
 header{justify-content:space-between;gap:12px;height:auto;min-height:64px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
 header .company{min-width:0}
 #header-account{margin:0}
@@ -247,6 +227,91 @@ main:has(#signin:not([hidden])){width:100%;max-width:none;margin:0}
 .hoon-account button:hover,.hoon-account a:hover{background:#eef4f8;filter:none}
 .hoon-account[hidden]{display:none}
 @media(max-width:570px){.hoon-lockup{gap:6px}.hoon-word img{width:32px;height:32px}.hoon-word b{font-size:37px}.hoon-industry{font-size:9px;padding-left:6px}}
+#header-account{gap:12px;min-width:0}
+#header-account .portal-header-action{display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:6px 9px;border:0;border-radius:9px;background:transparent;color:#345267;font-size:13px;font-weight:650;text-decoration:none;cursor:pointer;white-space:nowrap}
+#header-account .portal-header-action:hover{background:#f0f5f8;color:#00616f}
+#header-account svg{flex:none;width:18px;height:18px}
+#header-account :is(a,summary):focus-visible{outline:3px solid #78bec9;outline-offset:2px}
+#portal-account{position:relative;padding:0}
+#header-account #portal-account summary{background:#eaf3f4;color:#12606b;list-style:none}
+#portal-account summary::-webkit-details-marker{display:none}
+#viewer{max-width:clamp(70px,22vw,180px);overflow:hidden;text-overflow:ellipsis}
+.portal-account-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:30;min-width:185px;padding:6px;border:1px solid #dce5ed;border-radius:12px;background:#fff;box-shadow:0 8px 26px #19374d24}
+#portal-account-info{margin:0 0 4px;padding:7px 9px;border-bottom:1px solid #e4ebef;font-size:12px;overflow-wrap:anywhere}
+#header-account .portal-account-panel button{display:flex;align-items:center;gap:8px;width:100%;min-height:42px;padding:7px 9px;border:0;text-align:left;font-size:13px}
+#logout{color:#96352d}
+@media(max-width:600px){body>header{padding:10px 14px;gap:8px}#header-account{width:100%;justify-content:space-between;gap:4px}#header-account .portal-header-action{padding-inline:5px;font-size:12px}#header-account svg{width:15px;height:15px}}
+#header-account{width:auto;margin-left:auto}
+#header-account .portal-account-panel button:hover{background:#eef4f8}
+
+
+/* Shared action colors and keyboard focus. */
+:root{--action:#087e8b;--action-hover:#056772;--action-ink:#075c67;--action-border:#bed3d7;--action-tint:#eef6f7}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #58aab7;outline-offset:3px}
+button:disabled,[aria-disabled="true"]{cursor:not-allowed}
+#login-submit{background:var(--action);border-color:var(--action);box-shadow:0 2px 4px #0b394521}
+#login-submit:not(:disabled):hover{background:var(--action-hover);border-color:var(--action-hover);filter:none}
+
+a.secondary,button.secondary{min-height:40px;padding:7px 12px;border:1px solid var(--action-border);border-radius:8px;background:#fff;color:var(--action-ink);font-size:13px;font-weight:650}
+a.secondary:hover,button.secondary:not(:disabled):hover{background:var(--action-tint);border-color:#86b3bb;filter:none}
+.app-card{transition:border-color .15s,box-shadow .15s,background .15s}
+.app-card:is(a,button):not(:disabled):is(:hover,:focus-visible){background:#f7fbfc;border-color:#86b3bb;transform:none}
+.app-card .app-arrow{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border-radius:8px;background:var(--action-tint);color:var(--action-ink)}
+#header-account .portal-account-panel #logout:hover{background:#fff1ee}
+@media(pointer:coarse){.monitor-head .secondary{min-height:44px}}
+
+/* SIWS global navigation */
+.siws-nav{--nav-text:#42596c;--nav-current:#00616f;--nav-selected:#e7f2f3;--nav-hover:#f0f5f7;display:flex;align-items:center;justify-content:center;gap:2px;min-width:0;max-width:100%;position:static;padding:0;margin:0;border:0;border-radius:0;background:transparent;box-sizing:border-box}
+.siws-nav a{display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;min-height:38px;padding:6px 9px;border:0;border-radius:7px;background:transparent;color:var(--nav-text);font:600 13px/1.3 system-ui,sans-serif;text-decoration:none;white-space:nowrap;filter:none;box-shadow:none}
+.siws-nav a:hover{background:var(--nav-hover);color:var(--nav-current)}
+.siws-nav a[aria-current="page"]{background:var(--nav-selected);color:var(--nav-current);font-weight:700}
+.siws-nav a:focus-visible{outline:2px solid #178594;outline-offset:-2px}
+.siws-nav svg{width:16px;height:16px;flex:none}
+body>header{padding:10px clamp(12px,2.3vw,32px);column-gap:14px;row-gap:8px}
+body>header>.siws-nav{order:1;margin-inline:auto}
+body>header>:is(.hoon-account,#session-bar,#viewer){order:2;width:auto;margin-left:0}
+@media(max-width:1270px){body>header>.siws-nav{order:3;flex-basis:100%;justify-content:flex-start;border-top:1px solid #e6edf1;padding-top:5px}}
+@media(max-width:640px){.siws-nav,body>header>.siws-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.siws-nav a{min-height:40px;padding-inline:3px;gap:4px;font-size:12px}.siws-nav svg{width:14px;height:14px}}
+#home{grid-template-columns:minmax(0,1fr);gap:0}
+
+
+/* Fixed, single-row SIWS header. */
+body{padding-top:72px}
+body>header{position:fixed;inset:0 0 auto;z-index:2000;box-sizing:border-box;display:grid;grid-template-columns:minmax(200px,1fr) auto minmax(200px,1fr);grid-template-rows:72px;align-items:center;height:72px;min-height:72px;padding:0 24px;gap:0 16px;background:#fff;color:#18374c;border-bottom:1px solid #dce5ed}
+body>header>:first-child{grid-column:1;grid-row:1;min-width:0;margin:0}
+body>header>:is(.hoon-account,#session-bar,#viewer){grid-column:3;grid-row:1;justify-self:end;order:0;width:auto;margin:0;flex-wrap:nowrap}
+body>header>.siws-nav{grid-column:2;grid-row:1;order:0;position:static;inset:auto;display:flex;align-items:center;justify-content:center;flex-basis:auto;width:auto;height:72px;margin:0;padding:0;border:0;background:transparent;--nav-text:#42596c;--nav-current:#00616f;--nav-selected:#e7f2f3;--nav-hover:#f0f5f7}
+body>header>.siws-nav a{min-height:38px;padding:6px 10px;font-size:13px}
+body>header .hoon-lockup{display:inline-flex;align-items:center;gap:10px;color:#18374c;white-space:nowrap}
+body>header .hoon-word{display:inline-flex;align-items:center;gap:0}
+body>header .hoon-word img{width:36px;height:36px;object-fit:contain}
+body>header .hoon-word b{font:italic 700 41px/.86 "Snell Roundhand","Apple Chancery","Brush Script MT",cursive;letter-spacing:-.05em;padding:0 3px 4px 0}
+body>header .hoon-industry{display:inline-block;font:750 10px/1.4 system-ui;letter-spacing:.11em;padding-left:10px;border-left:1px solid #9eb2c0}
+body>header .erp-product,body>header .erp-help-links{display:none}
+body>header .brand{color:inherit;text-decoration:none}
+@media(max-width:900px){
+ body>header{grid-template-columns:auto minmax(0,1fr) auto;padding:0 10px;column-gap:6px}
+ body>header>.siws-nav{justify-content:center;overflow-x:auto;min-width:0}
+ body>header>.siws-nav a{padding:6px;font-size:11px;gap:3px;flex-shrink:0}
+ body>header>.siws-nav svg{display:none}
+ body>header .hoon-word img{width:25px;height:25px}
+ body>header .hoon-word b{font-size:29px}
+ body>header .hoon-industry{font-size:7px;letter-spacing:0;padding-left:4px}
+ body>header .hoon-lockup{gap:4px}
+ body>header>:is(.hoon-account,#session-bar,#viewer){font-size:11px;max-width:140px}
+}
+@media(max-width:560px){body>header .hoon-industry{max-width:46px;white-space:normal}body>header>.siws-nav{justify-content:flex-start}body>header>.siws-nav a{padding-inline:5px}}
+body:has(#signin:not([hidden])){padding-top:0}
+body:has(#signin:not([hidden]))>main{width:100%;margin:0;padding:0}
+#signin{min-height:100dvh}
+@media(max-width:900px){
+  #signin{grid-template-rows:auto 1fr}
+  #signin .login-brand{min-height:0;padding:22px 24px;gap:12px}
+  #signin .login-copy{padding-top:0}
+  #signin .login-copy h1{margin:0;font-size:36px}
+  #signin .login-panel{align-self:start;padding-top:20px}
+}
+
 </style>
 <svg width="0" height="0" aria-hidden="true" style="position:absolute">
   <filter id="hoon-teal" color-interpolation-filters="sRGB">
@@ -258,7 +323,22 @@ main:has(#signin:not([hidden])){width:100%;max-width:none;margin:0}
     <feColorMatrix type="matrix" values=".973 0 0 0 .027  0 .639 0 0 .361  0 0 .596 0 .404  0 0 0 1 0"/>
   </filter>
 </svg>
-<header><span class="hoon-lockup" role="img" aria-label="Hoon Heavy Industries"><span class="hoon-word" aria-hidden="true"><img src="/shipyard-icon.png" alt="" width="42" height="42"><b>oon</b></span><span class="hoon-industry" aria-hidden="true">HEAVY INDUSTRIES</span></span><div id="header-account" class="hoon-account" hidden><span id="viewer"></span><button id="logout" class="secondary" type="button">로그아웃</button></div></header>
+<header><span class="hoon-lockup" role="img" aria-label="Hoon Heavy Industries"><span class="hoon-word" aria-hidden="true"><img src="/shipyard-icon.png" alt="" width="42" height="42"><b>oon</b></span><span class="hoon-industry" aria-hidden="true">HEAVY INDUSTRIES</span></span><div id="header-account" class="hoon-account" hidden>
+  <details id="portal-account">
+    <summary class="portal-header-action"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3"/><path d="M5 20v-2a7 7 0 0 1 14 0v2"/></svg><span id="viewer"></span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m7 10 5 5 5-5"/></svg></summary>
+    <div class="portal-account-panel">
+      <p id="portal-account-info"></p>
+      <button id="logout" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5m4-12 4 4-4 4m-5-4h9"/></svg>로그아웃</button>
+    </div>
+  </details>
+</div>
+<nav class="siws-nav" aria-label="SIWS 화면 이동">
+  <a aria-current="page" href="/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-8 9 8M5 10v10h14V10m-10 10v-6h6v6"/></svg><span>포털 홈</span></a>
+  <a href="/control"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 15v-4m4 4V7m4 8v-6"/></svg><span>생산 관제</span></a>
+  <a href="/erp/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8m-8 6h8"/></svg><span>생산관리 ERP</span></a>
+  <a href="/twin/"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3zm0 9 8-4.5M12 12 4 7.5M12 12v9"/></svg><span>디지털 트윈</span></a>
+</nav>
+</header>
 <main>
   <section id="signin" aria-label="SIWS 로그인">
     <aside class="login-brand">
@@ -292,36 +372,14 @@ main:has(#signin:not([hidden])){width:100%;max-width:none;margin:0}
     </div>
   </section>
   <div id="home" hidden>
-  <nav class="operations-nav" aria-label="통합 업무 메뉴">
-    <h2>운영</h2>
-    <a href="#monitoring" aria-current="page">조선소 모니터링</a>
-    <a href="/map">조선소 지도</a>
-    <a href="/docs">ERP API 문서</a>
-    <a href="#apps-title">업무 시스템</a>
-  </nav>
   <div class="operations-main">
   <h1 class="workspace-title">조선소 모니터링</h1>
-  <div class="monitor-tabs" aria-label="모니터링 보기">
-    <button id="overview-tab" type="button" aria-pressed="true">운영 요약</button>
-    <button id="moves-tab" type="button" aria-pressed="false">블록 이동</button>
-  </div>
   <div class="grid">
     <article class="monitor" id="monitoring">
-      <div id="overview-panel">
       <div class="monitor-head"><div><h2>조선소 모니터링</h2>
       <p id="monitor-status" role="status">현황 조회 중</p></div>
       <a class="secondary" href="/erp/">운영 현황 열기 <span aria-hidden="true">↗</span></a></div>
-      <div id="metrics"></div></div>
-      <div id="moves-panel" hidden>
-        <div class="monitor-head"><h2>블록 이동 <span id="move-count"></span></h2></div>
-        <div class="filters"><label>검색<input id="move-search" type="search" placeholder="이동 번호 · 블록 · 시설"></label>
-        <button id="move-reset" type="button" class="secondary">조건 초기화</button></div>
-        <p id="move-status" role="status"></p>
-        <div class="table-scroll"><table>
-        <thead><tr><th scope="col" aria-sort="ascending"><button id="move-sort" type="button">이동 번호 ▲</button></th><th scope="col">블록</th><th scope="col">출발지</th><th scope="col">목적지</th><th scope="col">상태</th></tr></thead>
-        <tbody id="move-rows"></tbody></table></div>
-        <div class="move-pagination"><button id="move-prev" class="secondary" type="button">이전</button><span id="move-page"></span><button id="move-next" class="secondary" type="button">다음</button></div>
-      </div>
+      <div id="metrics"></div>
     </article>
     <section class="apps-section" aria-labelledby="apps-title">
       <h2 id="apps-title">업무 시스템</h2>
@@ -365,74 +423,28 @@ function signedOut(message = '') {
   token = '';
   sessionStorage.removeItem('shipyard-token');
   el('home').hidden = true;
+  el('portal-account').open = false;
   el('header-account').hidden = true;
   el('signin').hidden = false;
   el('login-status').textContent = message;
 }
-let moveRows = [], movePage = 0, ascending = true, moveMessage = '';
-function moveFields(row) {
-  return [row.id, row.block, row.origin, row.destination, row.confirmed_at ? '확정' : '이동 중'];
-}
-function renderMoves() {
-  const query = el('move-search').value.trim().toLowerCase();
-  const rows = moveRows.filter(row => moveFields(row).some(value => String(value ?? '').toLowerCase().includes(query)));
-  rows.sort((a,b) => (ascending ? 1 : -1) * String(a.id).localeCompare(String(b.id),'ko',{numeric:true}));
-  const body = el('move-rows');
-  body.replaceChildren();
-  const size = 12;
-  const pages = Math.max(1, Math.ceil(rows.length / size));
-  movePage = Math.min(movePage, pages - 1);
-  for (const row of rows.slice(movePage * size, (movePage + 1) * size)) {
-    const tr = body.insertRow();
-    for (const value of moveFields(row)) tr.insertCell().textContent = value ?? '—';
-  }
-  el('move-count').textContent = moveMessage ? '' : '(' + rows.length + '건)';
-  el('move-status').textContent = moveMessage || (rows.length ? '' : '조건에 맞는 이동 기록이 없습니다.');
-  el('move-page').textContent = (movePage + 1) + ' / ' + pages;
-  el('move-prev').disabled = movePage === 0;
-  el('move-next').disabled = movePage + 1 >= pages;
-}
-for (const [tab, showMoves] of [['overview-tab',false],['moves-tab',true]]) {
-  el(tab).onclick = () => {
-    el('overview-panel').hidden = showMoves;
-    el('moves-panel').hidden = !showMoves;
-    el('overview-tab').setAttribute('aria-pressed',String(!showMoves));
-    el('moves-tab').setAttribute('aria-pressed',String(showMoves));
-  };
-}
-el('move-search').oninput = () => { movePage = 0; renderMoves(); };
-el('move-reset').onclick = () => { el('move-search').value = ''; el('move-search').oninput(); };
-el('move-sort').onclick = () => {
-  ascending = !ascending;
-  el('move-sort').textContent = '이동 번호 ' + (ascending ? '▲' : '▼');
-  el('move-sort').parentElement.setAttribute('aria-sort',ascending ? 'ascending' : 'descending');
-  movePage = 0;
-  renderMoves();
-};
-el('move-prev').onclick = () => { movePage--; renderMoves(); };
-el('move-next').onclick = () => { movePage++; renderMoves(); };
-
 async function enter() {
   const user = await request('/api/me');
-  el('viewer').textContent = (user.name || user.id) + ' (' + user.id + ' · ' + user.group_id + ')';
+  el('viewer').textContent = user.name || user.id;
+  el('portal-account-info').textContent = user.id + ' · ' + user.group_id;
   el('signin').hidden = true;
   el('home').hidden = false;
   el('header-account').hidden = false;
-  moveRows = [];
-  movePage = 0;
-  moveMessage = (user.routes || []).includes('moves') ? '이동 기록을 불러오는 중입니다.' : '이동 기록 조회 권한이 없습니다.';
-  renderMoves();
   const metrics = el('metrics');
   metrics.replaceChildren();
   const available = [['hulls','등록 호선',rows=>rows.length],['blocks','등록 블록',rows=>rows.length],
     ['moves','이동 중',rows=>rows.filter(row=>!row.confirmed_at).length],
     ['orders','재검사 필요',rows=>rows.filter(row=>row.inspection==='불합격').length]]
     .filter(([route])=>(user.routes || []).includes(route));
-  const outcomes = await Promise.allSettled(available.map(async ([route,label,count]) => [route,label,count,await request('/api/'+route)]));
+  const outcomes = await Promise.allSettled(available.map(async ([route,label,count]) => [label,count,await request('/api/'+route)]));
   for (const outcome of outcomes) {
     if (outcome.status !== 'fulfilled') continue;
-    const [route,label,count,rows] = outcome.value;
-    if (route === 'moves') { moveRows = rows; moveMessage = ''; }
+    const [label,count,rows] = outcome.value;
     const card = document.createElement('div');
     card.className = 'metric';
     card.textContent = label;
@@ -441,14 +453,12 @@ async function enter() {
     card.append(number);
     metrics.append(card);
   }
-  if (moveMessage === '이동 기록을 불러오는 중입니다.') moveMessage = '이동 기록을 가져오지 못했습니다.';
-  renderMoves();
   el('monitor-status').textContent = !available.length ? '이 계정에 허용된 현황 항목이 없습니다.'
     : outcomes.some(item=>item.status==='rejected') ? '일부 현황을 가져오지 못했습니다.' : '조회 권한이 있는 생산 현황';
 }
 login.addEventListener('submit', async event => {
   event.preventDefault();
-  const button = login.querySelector('button');
+  const button = el('login-submit');
   button.disabled = true;
   el('login-status').textContent = '';
   try {
@@ -466,6 +476,15 @@ login.addEventListener('submit', async event => {
     login.elements.password.value = '';
     button.disabled = false;
   }
+});
+const accountMenu = el('portal-account');
+document.addEventListener('click', event => {
+  if (accountMenu.open && !accountMenu.contains(event.target)) accountMenu.open = false;
+});
+accountMenu.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !accountMenu.open) return;
+  accountMenu.open = false;
+  accountMenu.querySelector('summary').focus();
 });
 el('logout').onclick = async () => {
   try { await request('/api/logout',{}); signedOut(); }
@@ -485,7 +504,7 @@ function addApp({title, description, icon, image, url, run, unavailable}) {
   if (run) { card.type = 'button'; card.onclick = () => run(card); }
   if (unavailable) card.setAttribute('aria-disabled','true');
   const picture = document.createElement('img');
-  picture.className = 'app-cover';
+  picture.classList.add('app-cover');
   picture.src = image || '/yard-hero.jpg';
   picture.alt = '';
   const content = document.createElement('div');
@@ -523,10 +542,14 @@ async function configure() {
   el('apps').replaceChildren();
   addApp({title:'생산관리 ERP',description:'호선 일정 · 작업지시 · 구매·재고 · 품질',icon:'▤',
     image:'/yard-hero.jpg',url:'/erp/'});
+  addApp({title:'생산 관제',description:'호선별 주간 탑재 · 의장과 자재 · 도크와 안벽 계획·실적',icon:'▦',
+    image:'/production-control.jpg',url:'/control'});
+  addApp({title:'장비 모니터링',description:'조선소 지도 · 크레인 · 중장비 · 차량 위치와 수신 로그',
+    icon:'◈', image:'/equipment-monitoring.jpg', url:'/equipment/'});
   const results = await Promise.allSettled([request('/config'), request('/apps.json')]);
   const config = results[0].status === 'fulfilled' ? results[0].value : {};
-  const twin = safeLink(config.twin);
-  addApp({title:'Unity 디지털 트윈',description:twin || (config.installed && token) ? '3D 야드 · 블록 위치 · 장비 이동' : config.installed ? 'macOS 앱 직접 실행 · 포털에서 실행하려면 ERP 로그인 필요' : '실행 가능한 Unity 앱을 찾지 못했습니다.',
+  const twin = safeLink(config.twin) || safeLink(config.web);
+  addApp({title:'Unity 디지털 트윈',description:twin ? '3D 야드 · 블록 위치 · 장비 이동 · 브라우저에서 실행' : config.installed && token ? '3D 야드 · 블록 위치 · 장비 이동' : config.installed ? 'macOS 앱 직접 실행 · 포털에서 실행하려면 ERP 로그인 필요' : '실행 가능한 Unity 앱을 찾지 못했습니다.',
     icon:'◇', image:'/twin-preview.png', url:twin,
     run:!twin && config.installed && token ? launchTwin : null,unavailable:!twin && (!config.installed || !token)});
   const download = safeLink(config.download);
@@ -541,7 +564,7 @@ async function start() {
   try {
     const meta = await request('/api/meta');
     if (token || meta.login_required === false) await enter();
-    if (meta.login_required === false) el('logout').hidden = true;
+    if (meta.login_required === false) el('portal-account').hidden = true;
   } catch (error) {
     signedOut(error.message);
   }

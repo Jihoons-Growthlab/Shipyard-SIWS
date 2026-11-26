@@ -55,6 +55,22 @@ def validate_edge(db, table, source, target, source_column, target_column, looku
             pending.extend(edges.get(node, []))
 
 
+def check_milestone_order(db, milestone, actual, require):
+    order = ('기공', '진수', '시운전', '인도')
+    if milestone['milestone'] not in order:
+        return
+    position = order.index(milestone['milestone'])
+    for row in db.execute('SELECT milestone, actual FROM hull_milestones WHERE hull=? AND id<>?',
+                          (milestone['hull'], milestone['id'])):
+        if row['milestone'] not in order:
+            continue
+        index = order.index(row['milestone'])
+        if index < position:
+            require(row['actual'] and row['actual'] <= actual, f'{row["milestone"]} 실적을 먼저 확인하세요.')
+        elif index > position and row['actual']:
+            require(actual <= row['actual'], f'{row["milestone"]} 실적일보다 늦을 수 없습니다.')
+
+
 def write(db, action, v, api):
     require, lookup, insert = api.require, api.lookup, api.insert
     if action == 'milestone_update':

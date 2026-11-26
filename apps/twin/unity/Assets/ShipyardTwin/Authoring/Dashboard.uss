@@ -39,7 +39,7 @@ Button.tw-nav--active:hover .tw-nav-icon, Button.tw-nav--active:hover .tw-nav-la
 
 /* ---------- drawers ---------- */
 .tw-drawer {
-    position: absolute; left: 86px; top: 16px; bottom: 16px; width: 360px;
+    position: absolute; left: 86px; top: 64px; bottom: 16px; width: 360px;
     border-radius: 12px; padding: 16px;
     translate: -460px 0; opacity: 0; visibility: hidden;
     transition-property: translate, opacity;
@@ -92,18 +92,123 @@ Button.tw-danger {
 }
 Button.tw-danger:hover { background-color: rgb(215, 70, 62); }
 
-/* ---------- exit (top right) ---------- */
-Button.tw-exit {
-    position: absolute; top: 16px; right: 16px; height: 36px; margin: 0;
-    padding: 0 14px 0 11px; flex-direction: row; align-items: center;
-    border-radius: 10px; border-width: 1px; border-color: rgba(235, 80, 70, 0.45);
+/* ---------- top navigation ---------- */
+.tw-top-nav {
+    position: absolute; top: 16px; right: 16px; flex-direction: row; align-items: center;
+}
+Button.tw-top-button {
+    height: 36px; margin: 0 0 0 6px; padding: 0 11px; flex-direction: row; align-items: center;
+    border-radius: 8px; border-width: 1px; border-color: var(--gl-border);
     background-color: rgba(16, 19, 26, 0.92);
     transition-property: background-color; transition-duration: 0.15s;
 }
+Button.tw-top-button:hover { background-color: rgb(42, 49, 64); }
+Button.tw-top-button:focus { border-color: var(--gl-accent); }
+Button.tw-top-button--on { background-color: rgb(28, 52, 80); border-color: rgb(63, 113, 173); }
+Button.tw-top-button:disabled { opacity: 0.48; }
+.tw-top-icon { width: 17px; height: 17px; color: var(--gl-text-dim); }
+.tw-top-label { padding: 0; margin: 0 0 0 6px; font-size: 12px; color: var(--gl-text); }
+Button.tw-top-button--on .tw-top-icon { color: var(--gl-accent); }
+Button.tw-exit { border-color: rgba(235, 80, 70, 0.45); }
 Button.tw-exit:hover { background-color: rgba(120, 34, 34, 0.95); }
 Button.tw-exit:focus { border-color: rgb(255, 150, 140); }
-.tw-exit-icon { width: 16px; height: 16px; margin-right: 6px; color: rgb(255, 178, 170); }
-.tw-exit-label { padding: 0; margin: 0; color: rgb(255, 205, 200); -unity-font-style: bold; }
+.tw-exit .tw-top-icon { color: rgb(255, 178, 170); }
+.tw-exit .tw-top-label { color: rgb(255, 205, 200); }
+
+/* ---------- third-person walk (DashboardShellView: tw-walking on the root while OrbitCameraRig.IsWalking) ---------- */
+Button.tw-walk-button--on { background-color: rgb(20, 64, 52); border-color: rgb(64, 190, 150); }
+Button.tw-walk-button--on:hover { background-color: rgb(28, 82, 66); }
+Button.tw-walk-button--on .tw-top-icon { color: rgb(120, 230, 190); }
+.tw-walk-hint {
+    position: absolute; top: 58px; right: 16px; width: 290px; padding: 10px 12px; border-radius: 10px;
+    display: none; opacity: 0; transition-property: opacity; transition-duration: 0.4s;
+}
+.tw-walking .tw-walk-hint { display: flex; }
+.tw-walk-hint--show { opacity: 1; }
+.tw-walk-hint-title { font-size: 13px; -unity-font-style: bold; color: rgb(120, 230, 190); padding: 0; margin: 0 0 4px 0; }
+.tw-walk-hint-text { font-size: 12px; color: var(--gl-text); padding: 0; margin: 0; white-space: normal; }
+/* Thumb joystick: only while walking on a touch or compact screen, bottom left beside the rail (bottom set from code above the bars). */
+.tw-walk-pad {
+    position: absolute; left: 86px; bottom: 24px; width: 132px; height: 132px; border-radius: 66px;
+    align-items: center; justify-content: center; display: none;
+    background-color: rgba(16, 19, 26, 0.55); border-width: 1px; border-color: rgba(255, 255, 255, 0.16);
+}
+.tw-walking.tw-touch .tw-walk-pad, .tw-walking.tw-compact .tw-walk-pad { display: flex; }
+.tw-walk-pad-ring { position: absolute; width: 84px; height: 84px; border-radius: 42px; border-width: 1px; border-color: rgba(255, 255, 255, 0.1); }
+.tw-walk-knob {
+    width: 54px; height: 54px; border-radius: 27px;
+    background-color: rgba(120, 230, 190, 0.38); border-width: 2px; border-color: rgba(120, 230, 190, 0.8);
+}
+.tw-walk-pad--held { background-color: rgba(16, 19, 26, 0.7); border-color: rgba(120, 230, 190, 0.45); }
+.tw-compact .tw-walk-pad { left: 68px; width: 120px; height: 120px; border-radius: 60px; }
+.tw-compact .tw-walk-hint { top: 54px; right: 8px; width: 260px; }
+.tw-portrait .tw-walk-hint { left: 68px; width: auto; }
+.tw-utility-open .tw-walk-hint { display: none; }
+/* Walk hazard card: placed from code above the bottom bars, right of the rail and joystick (stacked over the joystick
+   when the row is too narrow). Shown with tw-walk-warning--show; pointer passes through. */
+.tw-walk-warning {
+    position: absolute; left: 236px; bottom: 24px; width: 340px;
+    flex-direction: row; align-items: center; padding: 8px 12px 8px 8px; border-radius: 10px;
+    background-color: rgba(48, 14, 12, 0.9); border-width: 1px; border-left-width: 4px;
+    border-color: rgba(255, 110, 90, 0.55); border-left-color: rgb(255, 92, 72);
+    display: none; opacity: 0; translate: 0 8px;
+    transition-property: opacity, translate; transition-duration: 0.18s, 0.18s;
+}
+.tw-walking .tw-walk-warning { display: flex; }
+.tw-walk-warning--show { opacity: 1; translate: 0 0; }
+.tw-walk-warning-tile {
+    width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; margin-right: 10px;
+    align-items: center; justify-content: center; background-color: rgba(255, 92, 72, 0.2);
+}
+.tw-walk-warning-icon { width: 20px; height: 20px; color: rgb(255, 196, 80); }
+.tw-walk-warning-body { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.tw-walk-warning-head { flex-direction: row; align-items: center; }
+.tw-walk-warning-title { font-size: 13px; -unity-font-style: bold; color: rgb(255, 214, 205); padding: 0; margin: 0 6px 0 0; flex-shrink: 1; }
+.tw-walk-warning-badge {
+    font-size: 10px; -unity-font-style: bold; padding: 1px 6px; margin: 0; border-radius: 8px; flex-shrink: 0;
+    color: rgb(255, 208, 110); background-color: rgba(240, 190, 60, 0.16);
+}
+.tw-walk-warning-name { font-size: 12px; color: var(--gl-text); padding: 0; margin: 2px 0 0 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tw-walk-warning-range { font-size: 11px; color: rgb(255, 190, 178); padding: 0; margin: 1px 0 0 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tw-compact .tw-walk-warning { padding: 6px 10px 6px 6px; }
+.tw-compact .tw-walk-warning-tile { width: 30px; height: 30px; margin-right: 8px; }
+.tw-compact .tw-walk-warning-icon { width: 18px; height: 18px; }
+
+.tw-utility-panel {
+    position: absolute; top: 58px; right: 16px; width: 290px; max-height: 76%;
+    padding: 12px; border-radius: 10px; display: none;
+}
+.tw-utility-panel--open { display: flex; }
+.tw-help-scroll, .tw-layer-scroll { flex-shrink: 1; min-height: 0; }
+.tw-layer-toggle {
+    min-height: 38px; margin: 4px 0 0 0; padding: 0 8px;
+    align-items: center; border-radius: 7px; border-width: 1px; border-color: transparent;
+}
+.tw-layer-toggle:hover { background-color: rgba(84, 160, 255, 0.10); }
+.tw-layer-toggle:focus { border-color: var(--gl-accent); }
+.tw-layer-toggle .unity-base-field__label { flex-grow: 1; min-width: 0; color: var(--gl-text); font-size: 13px; }
+.tw-layer-toggle .unity-toggle__input {
+    flex-grow: 0; flex-shrink: 0; flex-direction: row; align-items: center; justify-content: flex-start;
+    width: 38px; min-width: 38px; height: 22px; min-height: 22px; padding: 0 3px; border-radius: 11px;
+    border-width: 1px; border-color: rgb(86, 102, 125); background-color: rgb(44, 55, 72);
+}
+.tw-layer-toggle .unity-toggle__input .unity-toggle__checkmark {
+    width: 14px; min-width: 14px; height: 14px; min-height: 14px; margin: 0;
+    border-width: 0; border-radius: 7px; background-image: none; background-color: rgb(180, 193, 212);
+}
+.tw-layer-toggle--on .unity-toggle__input {
+    justify-content: flex-end; border-color: var(--gl-accent); background-color: rgb(35, 109, 201);
+}
+.tw-layer-toggle--on .unity-toggle__input .unity-toggle__checkmark { background-color: white; }
+.tw-hide-cranes .tw-crane-label,
+.tw-hide-cranes .tw-crane-replay-label,
+.tw-hide-cranes .tw-lift-label,
+.tw-hide-vehicles .tw-vehicle-label,
+.tw-hide-buildings .tw-shop-count,
+.tw-hide-blocks .tw-shop-count,
+.tw-hide-blocks .tw-lift-label { visibility: hidden; }
 
 /* ---------- depth legend ---------- */
 .tw-legend {
@@ -150,8 +255,8 @@ Button.tw-exit:focus { border-color: rgb(255, 150, 140); }
 .tw-data-status--erp { color: var(--gl-normal); background-color: rgba(64, 190, 120, 0.10); }
 .tw-data-status--loading { color: var(--gl-accent); background-color: rgba(84, 160, 255, 0.10); }
 .tw-data-status--failed { color: var(--gl-warning); background-color: rgba(240, 190, 60, 0.10); }
-.tw-scroll { margin-right: -8px; }
-.tw-scroll > .unity-scroll-view__content-viewport > .unity-scroll-view__content-container { padding-right: 8px; }
+/* Panels scroll by wheel, drag and touch without a visible bar (drawer list and chat messages). */
+.gl-screen .unity-scroller { display: none; }
 .tw-chips { flex-direction: row; flex-wrap: wrap; margin-bottom: 6px; }
 Button.tw-chip {
     margin: 0 6px 6px 0; padding: 5px 10px; border-radius: 8px; border-width: 1px;
@@ -166,3 +271,485 @@ Button.tw-chip--active .tw-chip-title { color: var(--gl-accent); }
 .tw-sim { margin-top: 4px; }
 .tw-events { min-height: 160px; }
 Button.tw-primary:disabled { opacity: 0.45; }
+
+/* ---------- drawer scrolling (any size): only the list scrolls, header and status stay ---------- */
+.tw-scroll { flex-basis: 0; flex-shrink: 1; min-height: 0; }
+.tw-drawer-header, .tw-data-status { flex-shrink: 0; }
+.tw-chips > Button { max-width: 100%; }
+.tw-chip-title, .tw-chip-sub { white-space: normal; }
+
+/* ---------- control help: mouse/keyboard vs touch (tw-touch set by DashboardShellView) ---------- */
+.tw-touch-help { display: none; }
+.tw-touch .tw-desktop-help { display: none; }
+.tw-touch .tw-touch-help { display: flex; }
+
+/* ---------- compact: phones and small windows (panel < 720 x 520; 1 unit = 1 CSS px in the browser) ---------- */
+.tw-compact .tw-rail { width: 60px; padding: 8px 0 8px 0; }
+.tw-compact .tw-mark { width: 32px; height: 32px; }
+.tw-compact .tw-rail-divider { width: 28px; margin: 8px 0 4px 0; }
+.tw-compact Button.tw-nav { width: 52px; height: 52px; margin: 2px 0; }
+.tw-compact .tw-nav-icon { width: 20px; height: 20px; }
+.tw-compact .tw-nav-label { font-size: 11px; margin-top: 3px; }
+
+.tw-compact .tw-drawer { left: 68px; top: 56px; bottom: 8px; padding: 12px; border-radius: 10px; }
+.tw-compact Button.tw-icon-button { width: 36px; height: 36px; }
+.tw-compact .tw-icon-sm { width: 16px; height: 16px; }
+.tw-compact .gl-title { font-size: 16px; }
+.tw-compact .tw-wrap { font-size: 13px; }
+.tw-compact .tw-data-status { font-size: 12px; }
+.tw-compact Button.tw-chip { min-height: 40px; padding: 6px 10px; justify-content: center; }
+.tw-compact .tw-chip-title { font-size: 13px; }
+.tw-compact .tw-chip-sub { font-size: 11px; }
+.tw-compact .tw-controls > Button { height: 40px; font-size: 13px; }
+.tw-compact .tw-controls > Button.tw-secondary { padding: 0 10px; }
+.tw-compact .tw-dialog-buttons > Button { height: 40px; }
+
+/* Exit: icon only, a 40 px target in the corner. */
+.tw-compact .tw-top-nav { top: 8px; right: 8px; }
+.tw-compact Button.tw-top-button { height: 40px; width: 40px; margin-left: 4px; padding: 0; justify-content: center; }
+.tw-compact .tw-top-label { display: none; }
+.tw-compact .tw-top-icon { width: 18px; height: 18px; }
+.tw-compact Button.tw-walk-button { width: 72px; }
+.tw-compact .tw-walk-button .tw-top-label { display: flex; margin-left: 4px; font-size: 10px; }
+.tw-compact .tw-utility-panel { top: 54px; right: 8px; }
+.tw-portrait .tw-utility-panel { left: 68px; width: auto; }
+.tw-compact .tw-layer-toggle { min-height: 40px; }
+
+.tw-compact .tw-legend { right: 8px; bottom: 8px; width: 260px; padding: 10px; }
+.tw-compact .tw-tip { max-width: 240px; }
+
+/* Portrait phone: the drawer is a bottom sheet beside the rail, so the yard stays visible above it. */
+.tw-portrait .tw-drawer { top: 38%; right: 8px; width: auto; translate: 0 110%; }
+.tw-portrait .tw-drawer--open { translate: 0 0; }
+.tw-portrait .tw-legend { left: 68px; width: auto; }
+
+/* ---------- schedule bar and simulation banner (ScheduleTimelineView) ---------- */
+.tw-timeline {
+    position: absolute; left: 86px; right: 16px; bottom: 16px; height: 250px;
+    border-radius: 12px; padding: 10px 12px 8px 12px; display: none;
+}
+.tw-has-timeline .tw-timeline { display: flex; }
+.tw-drawer-open .tw-timeline { left: 460px; }
+.tw-has-timeline .tw-legend { bottom: 280px; }
+.tw-tl-head { flex-direction: row; align-items: center; flex-shrink: 0; margin-bottom: 6px; }
+.tw-tl-date { font-size: 15px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0 10px 0 0; flex-shrink: 0; }
+.tw-tl-today { flex-grow: 1; flex-shrink: 1; font-size: 12px; color: var(--gl-text-dim); padding: 0; margin: 0 8px 0 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+Button.tw-tl-button { height: 28px; margin: 0 0 0 6px; padding: 0 12px; flex-shrink: 0; }
+.tw-tl-body { flex-grow: 1; flex-direction: row; min-height: 0; border-radius: 6px; overflow: hidden;
+    background-color: rgba(255, 255, 255, 0.03); border-width: 1px; border-color: var(--gl-border); }
+.tw-tl-names { width: 128px; flex-shrink: 0; overflow: hidden; border-right-width: 1px; border-color: var(--gl-border);
+    background-color: rgba(10, 13, 18, 0.5); }
+.tw-tl-name { position: absolute; left: 0; right: 0; height: 18px; padding: 0 8px; margin: 0; font-size: 11px;
+    -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--gl-text-dim); }
+.tw-tl-name--hull { color: var(--gl-text); -unity-font-style: bold; }
+.tw-tl-name--first { border-top-width: 1px; border-color: rgba(255, 255, 255, 0.12); }
+.tw-tl-name--focus { color: var(--gl-accent); background-color: rgba(84, 160, 255, 0.12); -unity-font-style: bold; }
+.tw-tl-canvas { flex-grow: 1; overflow: hidden; }
+.tw-tl-ticks { position: absolute; left: 0; top: 0; right: 0; height: 22px; }
+.tw-tl-tick { position: absolute; top: 3px; padding: 0; margin: 0; font-size: 10px; color: var(--gl-text-dim); white-space: nowrap; }
+.tw-tl-tick--major { color: var(--gl-text); -unity-font-style: bold; }
+.tw-tl-hover { position: absolute; display: none; max-width: 280px; padding: 5px 9px; margin: 0; font-size: 11px; white-space: normal;
+    border-radius: 6px; border-width: 1px; border-color: var(--gl-border); color: var(--gl-text);
+    background-color: rgba(16, 19, 26, 0.96); }
+.tw-tl-foot { flex-direction: row; justify-content: space-between; flex-shrink: 0; margin-top: 4px; }
+.tw-tl-range, .tw-tl-help { font-size: 10px; color: var(--gl-text-dim); padding: 0; margin: 0; }
+
+.tw-banner {
+    position: absolute; top: 64px; left: 30%; right: 30%; align-items: center;
+    padding: 10px 18px; border-radius: 12px; display: none;
+}
+.tw-simulating .tw-banner { display: flex; }
+.tw-banner-date { font-size: 18px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0; }
+.tw-banner-text { font-size: 13px; color: var(--gl-accent); padding: 0; margin: 3px 0 0 0; white-space: normal; -unity-text-align: upper-center; }
+
+/* Compact: a lower bar beside the rail, hidden while a drawer is open (the drawer has the room). */
+.tw-compact .tw-timeline { left: 68px; right: 8px; bottom: 8px; height: 200px; padding: 8px; }
+.tw-compact.tw-drawer-open .tw-timeline { display: none; }
+.tw-compact.tw-has-timeline .tw-legend { bottom: 216px; }
+.tw-compact .tw-tl-names { width: 92px; }
+.tw-compact .tw-tl-today { display: none; }
+.tw-compact Button.tw-tl-button { height: 36px; padding: 0 10px; }
+.tw-compact .tw-banner { left: 68px; right: 8px; top: 56px; }
+.tw-compact .tw-banner-date { font-size: 15px; }
+.tw-compact .tw-tl-foot { display: none; }
+
+/* ---------- hull list (ErectionPanelView): own scroll area, rows grouped by dock ---------- */
+.tw-hull-head { flex-direction: row; justify-content: space-between; align-items: flex-end; flex-shrink: 0; }
+.tw-hull-count { font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 0 2px 4px 0; }
+.tw-hull-scroll { max-height: 264px; flex-shrink: 0; margin-bottom: 8px; border-radius: 8px; border-width: 1px;
+    border-color: var(--gl-border); background-color: rgba(255, 255, 255, 0.02); }
+.tw-hull-list { padding: 2px 4px 4px 4px; }
+.tw-hull-group { font-size: 10px; -unity-font-style: bold; color: var(--gl-text-dim); padding: 6px 6px 2px 6px; margin: 0; }
+Button.tw-hull-row {
+    flex-direction: row; align-items: center; justify-content: space-between; height: 42px; flex-shrink: 0;
+    margin: 0 0 3px 0; padding: 0 10px; border-radius: 7px; border-width: 1px; border-color: rgba(0, 0, 0, 0);
+    background-color: var(--gl-surface);
+}
+Button.tw-hull-row:hover { background-color: rgb(42, 49, 64); }
+Button.tw-hull-row--active, Button.tw-hull-row--active:hover { border-color: rgba(84, 160, 255, 0.6); background-color: rgba(84, 160, 255, 0.16); }
+.tw-hull-text { flex-grow: 1; flex-shrink: 1; min-width: 0; align-items: flex-start; }
+.tw-hull-id, .tw-hull-sub { -unity-text-align: middle-left; }
+.tw-hull-id { font-size: 13px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0; }
+Button.tw-hull-row--active .tw-hull-id { color: var(--gl-accent); }
+.tw-hull-sub { font-size: 10px; color: var(--gl-text-dim); padding: 0; margin: 1px 0 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-hull-badge { flex-shrink: 0; font-size: 10px; -unity-font-style: bold; padding: 2px 7px; margin: 0 0 0 8px; border-radius: 8px;
+    color: var(--gl-text-dim); background-color: rgba(255, 255, 255, 0.06); }
+.tw-hull-badge--active { color: var(--gl-normal); background-color: rgba(64, 190, 120, 0.16); }
+.tw-hull-badge--planned { color: var(--gl-accent); background-color: rgba(84, 160, 255, 0.14); }
+.tw-hull-badge--done { color: var(--gl-text-dim); }
+
+/* Phones: taller rows to tap, a shorter list so the simulation below it stays in reach. */
+.tw-compact .tw-hull-scroll { max-height: 200px; }
+.tw-compact Button.tw-hull-row { height: 46px; }
+.tw-compact .tw-hull-id { font-size: 14px; }
+.tw-compact .tw-hull-sub { font-size: 11px; }
+
+/* Schedule bar folded to its head row (phones start folded; ScheduleTimelineView). */
+.tw-timeline--collapsed { height: auto; }
+.tw-timeline--collapsed .tw-tl-body, .tw-timeline--collapsed .tw-tl-foot { display: none; }
+.tw-timeline--collapsed .tw-tl-head { margin-bottom: 0; }
+.tw-compact .tw-timeline--collapsed { height: auto; }
+.tw-compact .tw-tl-date { font-size: 13px; margin-right: 6px; }
+.tw-compact Button.tw-tl-button { margin-left: 4px; padding: 0 8px; }
+.tw-compact .tw-timeline--collapsed #timeline-restart, .tw-compact .tw-timeline--collapsed #timeline-fit { display: none; }
+.tw-compact .tw-banner { padding: 6px 10px; }
+.tw-compact .tw-banner-text { font-size: 12px; }
+
+/* ---------- drawer: count tiles, folded reference sections (ErectionPanelView) ---------- */
+.tw-stats { flex-direction: row; margin: 2px -3px 2px -3px; }
+.tw-stat { flex-grow: 1; flex-basis: 0; min-width: 0; margin: 3px; padding: 7px 8px 6px 8px; border-radius: 8px;
+    border-width: 1px; border-color: var(--gl-border); background-color: var(--gl-surface);
+    border-left-width: 3px; }
+.tw-stat-value { font-size: 17px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0; }
+.tw-stat-label { font-size: 10px; color: var(--gl-text-dim); padding: 0; margin: 1px 0 0 0; }
+.tw-stat--stocked { border-left-color: rgb(120, 140, 160); }
+.tw-stat--erected { border-left-color: rgb(64, 190, 120); }
+.tw-stat--production { border-left-color: rgb(84, 160, 255); }
+.tw-stat--unplaced { border-left-color: rgb(235, 110, 90); }
+.tw-stat--unplaced:hover { background-color: rgb(42, 49, 64); }
+.tw-summary { margin: 2px 0 6px 0; font-size: 11px; }
+
+.tw-fold { margin: 6px 0 0 0; border-radius: 8px; border-width: 1px; border-color: var(--gl-border);
+    background-color: rgba(255, 255, 255, 0.02); }
+.tw-fold > .unity-foldout__toggle { margin: 0; padding: 8px 10px; }
+.tw-fold > .unity-foldout__toggle .unity-toggle__text { font-size: 12px; -unity-font-style: bold; color: var(--gl-text); }
+.tw-fold > .unity-foldout__toggle .unity-toggle__checkmark { -unity-background-image-tint-color: var(--gl-text-dim); }
+.tw-fold > .unity-foldout__content { margin: 0; padding: 0 10px 10px 10px; }
+.tw-fold-note { margin: 0 0 8px 0; font-size: 11px; }
+
+.tw-plan-title { font-size: 11px; -unity-font-style: bold; color: var(--gl-text-dim); padding: 0; margin: 10px 0 4px 0; }
+.tw-plan-item { padding: 5px 8px; margin: 0 0 3px 0; border-radius: 6px; border-left-width: 2px;
+    border-left-color: rgba(84, 160, 255, 0.55); background-color: rgba(255, 255, 255, 0.035); }
+.tw-plan-head { font-size: 11px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0; white-space: normal; }
+.tw-plan-detail { font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 1px 0 0 0; white-space: normal; }
+.tw-plan-empty { font-size: 11px; color: var(--gl-text-dim); padding: 0 2px; margin: 0 0 2px 0; white-space: normal; }
+
+.tw-unplaced-hull { font-size: 11px; -unity-font-style: bold; color: var(--gl-text-dim); padding: 0; margin: 6px 0 4px 0; }
+.tw-unplaced-hull--selected { color: var(--gl-accent); }
+.tw-block-chips { flex-direction: row; flex-wrap: wrap; }
+.tw-block-chip { font-size: 10px; padding: 2px 7px; margin: 0 4px 4px 0; border-radius: 6px; color: rgb(255, 196, 186);
+    background-color: rgba(235, 110, 90, 0.14); border-width: 1px; border-color: rgba(235, 110, 90, 0.35); }
+.tw-block-chip--more { color: var(--gl-text-dim); background-color: rgba(255, 255, 255, 0.05); border-color: var(--gl-border); }
+
+.tw-keys { margin-top: 2px; }
+.tw-key-row { flex-direction: row; align-items: center; margin: 0 0 4px 0; }
+.tw-key { flex-shrink: 0; width: 132px; font-size: 10px; -unity-font-style: bold; padding: 2px 6px; margin: 0 8px 0 0;
+    border-radius: 5px; color: var(--gl-text); background-color: rgba(255, 255, 255, 0.07);
+    border-width: 1px; border-color: var(--gl-border); -unity-text-align: middle-center; }
+.tw-key-text { flex-shrink: 1; font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 0; white-space: normal; }
+
+.tw-compact .tw-stat { padding: 6px 6px 5px 6px; }
+.tw-compact .tw-stat-value { font-size: 16px; }
+.tw-compact .tw-key { width: 108px; }
+
+/* ---------- selected crane: danger zone and load chart (CraneSafetyView) ---------- */
+.tw-crane { position: absolute; right: 16px; top: 64px; width: 300px; border-radius: 10px; display: none; }
+.tw-crane--show { display: flex; }
+.tw-stat--danger { border-left-color: rgb(235, 80, 70); }
+.tw-stat--radius { border-left-color: rgb(84, 160, 255); }
+.tw-stat--rated { border-left-color: rgb(64, 190, 120); }
+.tw-stat--load { border-left-color: rgb(120, 140, 160); }
+.tw-stat--over { border-left-color: rgb(235, 80, 70); background-color: rgba(235, 80, 70, 0.18); }
+.tw-stat--near { border-left-color: rgb(240, 190, 60); }
+.tw-crane-state { font-size: 11px; color: var(--gl-text-dim); white-space: normal; padding: 0; margin: 4px 0 0 0; }
+.tw-crane-chart { margin: 0; flex-shrink: 1; min-height: 40px; }
+.tw-crane > * { flex-shrink: 0; }
+.tw-crane > .tw-crane-chart { flex-shrink: 1; }
+.tw-has-timeline .tw-crane { bottom: 280px; }
+.tw-compact.tw-has-timeline .tw-crane { bottom: 216px; }
+.tw-chart-row { flex-direction: row; align-items: center; height: 16px; margin: 1px 0; padding: 0 4px; border-radius: 4px; }
+.tw-chart-row--now { background-color: rgba(84, 160, 255, 0.18); }
+.tw-chart-radius { width: 52px; font-size: 10px; color: var(--gl-text-dim); padding: 0; margin: 0; -unity-text-align: middle-right; }
+.tw-chart-track { flex-grow: 1; height: 8px; margin: 0 6px; border-radius: 3px; background-color: rgba(255, 255, 255, 0.06); }
+.tw-chart-bar { height: 8px; border-radius: 3px; }
+.tw-chart-value { width: 44px; font-size: 10px; color: var(--gl-text); padding: 0; margin: 0; -unity-text-align: middle-right; }
+.tw-crane-note { margin-top: 6px; font-size: 11px; }
+.tw-compact .tw-crane { right: 8px; top: 56px; width: 260px; padding: 10px; }
+.tw-portrait .tw-crane { left: 68px; right: 8px; width: auto; }
+.tw-crane-label { font-size: 10px; -unity-font-style: bold; padding: 1px 5px; border-radius: 4px; color: rgb(230, 234, 242);
+    background-color: rgba(16, 19, 26, 0.78); translate: -50% -50%; }
+.tw-crane-label--danger { color: rgb(255, 205, 200); background-color: rgba(120, 30, 26, 0.85); }
+
+/* ---------- object detail popup (ObjectDetailView) ---------- */
+.tw-detail {
+    position: absolute; top: 64px; right: 16px; bottom: 16px; width: 400px; max-width: 46%;
+    padding: 0; border-radius: 14px; overflow: hidden; flex-direction: column;
+    opacity: 0; translate: 36px 0; scale: 0.97 0.97;
+    transition-property: opacity, translate, scale; transition-duration: 0.28s, 0.42s, 0.42s;
+    transition-timing-function: ease-out-cubic, ease-out-cubic, ease-out-back;
+}
+.tw-detail--open { opacity: 1; translate: 0 0; scale: 1 1; }
+.tw-detail--swap { scale: 0.985 0.985; transition-duration: 0.12s, 0.12s, 0.12s; }
+.tw-has-timeline .tw-detail { bottom: 282px; }
+.tw-detail-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background-color: var(--gl-accent); }
+.tw-detail--hull .tw-detail-accent { background-color: rgb(170, 140, 255); }
+.tw-detail--block .tw-detail-accent { background-color: rgb(84, 160, 255); }
+.tw-detail--crane .tw-detail-accent { background-color: rgb(240, 190, 60); }
+.tw-detail--vehicle .tw-detail-accent { background-color: rgb(255, 140, 110); }
+.tw-detail--facility .tw-detail-accent { background-color: rgb(115, 222, 194); }
+.tw-detail--prop .tw-detail-accent { background-color: rgb(120, 128, 140); }
+.tw-detail-head { flex-direction: row; align-items: flex-start; flex-shrink: 0; padding: 14px 12px 12px 18px;
+    background-color: rgba(255, 255, 255, 0.035); border-bottom-width: 1px; border-color: var(--gl-border); }
+.tw-detail-heading { flex-grow: 1; flex-shrink: 1; }
+.tw-detail-kind { font-size: 10px; -unity-font-style: bold; color: var(--gl-accent); padding: 0; margin: 0 0 2px 0; letter-spacing: 1px; }
+.tw-detail--hull .tw-detail-kind { color: rgb(190, 170, 255); }
+.tw-detail--crane .tw-detail-kind { color: var(--gl-warning); }
+.tw-detail--facility .tw-detail-kind { color: rgb(115, 222, 194); }
+.tw-detail--vehicle .tw-detail-kind { color: rgb(255, 160, 130); }
+.tw-detail--prop .tw-detail-kind { color: var(--gl-text-dim); }
+.tw-detail-title { font-size: 19px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0; white-space: normal; }
+.tw-detail-subtitle { font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 3px 0 0 0; white-space: normal; }
+.tw-detail-status { flex-direction: row; margin-top: 8px; }
+.tw-detail-scroll { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-height: 0; }
+.tw-detail-facts { flex-direction: row; flex-wrap: wrap; padding: 10px 12px 2px 18px; }
+.tw-fact { width: 50%; padding: 0 8px 8px 0; }
+.tw-fact-label { font-size: 10px; color: var(--gl-text-dim); padding: 0; margin: 0; }
+.tw-fact-value { font-size: 12px; color: var(--gl-text); padding: 0; margin: 1px 0 0 0; white-space: normal; -unity-font-style: bold; }
+.tw-tone--normal { color: var(--gl-normal); }
+.tw-tone--info { color: var(--gl-accent); }
+.tw-tone--warning { color: var(--gl-warning); }
+.tw-tone--alarm { color: var(--gl-alarm); }
+.tw-tone--offline { color: var(--gl-text-dim); }
+.tw-detail-sections { padding: 0 0 8px 0; }
+/* Inside the scroll view nothing shrinks: sections and charts keep their full height and the view scrolls. */
+.tw-detail-facts, .tw-detail-sections, .tw-detail-section, .tw-detail-section > *, .tw-chart-row, .tw-detail-row { flex-shrink: 0; }
+.tw-detail-section {
+    margin: 4px 12px 8px 12px; padding: 10px 12px 8px 12px; border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.03); border-width: 1px; border-color: rgba(255, 255, 255, 0.06);
+    opacity: 0; translate: 0 14px;
+    transition-property: opacity, translate; transition-duration: 0.36s, 0.42s; transition-timing-function: ease-out-cubic;
+}
+.tw-detail-section--in { opacity: 1; translate: 0 0; }
+.tw-section-title { font-size: 12px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0 0 6px 0; }
+.tw-section-note { font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 0 0 4px 0; white-space: normal; }
+.tw-section-note--pending { color: var(--gl-accent); }
+.tw-chart-row { flex-direction: row; align-items: flex-start; }
+.tw-chart-row > .gl-chart { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; }
+.tw-chart-row > .tw-chart-donut { width: 120px; flex-grow: 0; flex-shrink: 0; flex-basis: auto; margin-right: 10px; }
+.tw-chart-donut--solo { width: 160px; align-self: center; }
+.tw-detail-section .gl-chart { margin-bottom: 8px; }
+.tw-detail-rows { margin-top: 2px; }
+.tw-detail-row { flex-direction: row; justify-content: space-between; align-items: flex-start; padding: 5px 0 4px 0;
+    border-top-width: 1px; border-color: rgba(255, 255, 255, 0.06); }
+.tw-row-label { font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 0 10px 0 0; flex-shrink: 0; max-width: 45%; white-space: normal; }
+.tw-row-value { font-size: 11px; color: var(--gl-text); padding: 0; margin: 0; flex-shrink: 1; white-space: normal; -unity-text-align: upper-right; }
+.tw-skeleton { margin: 4px 0 2px 0; opacity: 1; transition-property: opacity; transition-duration: 0.55s; }
+.tw-skeleton--dim { opacity: 0.35; }
+.tw-skeleton-bar { height: 10px; border-radius: 5px; margin-bottom: 7px; background-color: rgba(255, 255, 255, 0.08); }
+.tw-detail-source { flex-shrink: 0; font-size: 10px; color: var(--gl-text-dim); padding: 7px 14px 8px 18px; margin: 0;
+    border-top-width: 1px; border-color: var(--gl-border); white-space: normal; }
+
+/* compact screens: bottom sheet between the rail and the right edge */
+.tw-compact .tw-detail { top: auto; left: 68px; right: 8px; bottom: 8px; width: auto; max-width: none; height: 62%; translate: 0 48px; }
+.tw-compact .tw-detail--open { translate: 0 0; }
+.tw-compact .tw-fact { width: 50%; }
+.tw-compact .tw-detail-title { font-size: 17px; }
+
+/* ---------- selection brackets ---------- */
+/* selected heavy machine: simulated danger zone (EquipmentZone) — always marked as an estimate */
+.tw-detail-zone { display: none; margin-top: 8px; padding: 6px 9px; border-radius: 8px; font-size: 11px; white-space: normal;
+    color: rgb(255, 214, 170); background-color: rgba(255, 158, 56, 0.12); border-left-width: 3px; border-color: rgb(255, 158, 56); }
+.tw-zone-label { font-size: 10px; -unity-font-style: bold; padding: 2px 6px; border-radius: 5px; -unity-text-align: middle-left;
+    color: rgb(255, 222, 186); background-color: rgba(64, 34, 8, 0.82); border-width: 1px; border-color: rgba(255, 158, 56, 0.75);
+    translate: 8px -50%; white-space: nowrap; }
+
+/* ---------- yard calendar bar and shop labels (YardClockView) ---------- */
+.tw-yardclock {
+    position: absolute; left: 86px; right: 16px; bottom: 16px; border-radius: 12px; padding: 10px 12px; display: none;
+}
+.tw-has-yard-clock .tw-yardclock { display: flex; }
+.tw-has-timeline .tw-yardclock { display: none; }
+.tw-drawer-open .tw-yardclock { left: 460px; }
+.tw-has-yard-clock .tw-legend { bottom: 130px; }
+.tw-yc-head { flex-direction: row; align-items: center; }
+.tw-yc-date { font-size: 15px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0 10px 0 0; flex-shrink: 0; }
+.tw-yc-cycle { flex-grow: 1; flex-shrink: 1; font-size: 12px; color: var(--gl-text-dim); padding: 0; margin: 0 8px 0 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-yc-track { height: 10px; margin: 8px 0 6px 0; border-radius: 5px; background-color: rgba(255, 255, 255, 0.08); }
+.tw-yc-fill { height: 100%; width: 0; border-radius: 5px; background-color: rgb(59, 130, 246); }
+.tw-yc-activity { font-size: 12px; color: var(--gl-text-dim); padding: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tw-compact .tw-yardclock { left: 68px; right: 8px; bottom: 8px; padding: 8px; }
+.tw-compact.tw-drawer-open .tw-yardclock { display: none; }
+.tw-compact .tw-yc-cycle { display: none; }
+.tw-shop-count {
+    padding: 3px 8px; border-radius: 10px; font-size: 12px; -unity-font-style: bold; color: rgb(255, 255, 255);
+    background-color: rgba(37, 99, 235, 0.85); white-space: nowrap;
+}
+.tw-shop-count--idle { visibility: hidden; }   /* no block in the shop that day */
+
+/* ---------- shop floor in the object popup (ObjectDetailView bays) ---------- */
+.tw-bays { margin: 2px 0 10px 0; flex-shrink: 0; }
+.tw-bay { flex-direction: row; align-items: flex-start; flex-shrink: 0; padding: 7px 0; border-top-width: 1px; border-color: rgba(255, 255, 255, 0.06);
+    opacity: 0; translate: -10px 0; transition-property: opacity, translate; transition-duration: 0.3s, 0.36s; transition-timing-function: ease-out-cubic; }
+.tw-bay--in { opacity: 1; translate: 0 0; }
+.tw-bay-head { width: 74px; flex-shrink: 0; margin-right: 8px; }
+.tw-bay-name { font-size: 11px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0; white-space: normal; }
+.tw-bay-count { font-size: 18px; -unity-font-style: bold; color: rgb(115, 222, 194); padding: 0; margin: 1px 0 3px 0; }
+.tw-bay--waiting .tw-bay-count { color: var(--gl-warning); }
+.tw-bay-meter { height: 3px; border-radius: 2px; background-color: rgba(255, 255, 255, 0.08); }
+.tw-bay-meter-fill { height: 3px; border-radius: 2px; background-color: rgb(115, 222, 194); }
+.tw-bay--waiting .tw-bay-meter-fill { background-color: var(--gl-warning); }
+.tw-bay-chips { flex-grow: 1; flex-shrink: 1; flex-direction: row; flex-wrap: wrap; min-width: 0; }
+.tw-chip-block { width: 31%; margin: 0 2% 4px 0; padding: 3px 5px 3px 6px; border-radius: 5px; flex-shrink: 0;
+    background-color: rgba(255, 255, 255, 0.05); border-left-width: 3px; border-color: var(--gl-normal); }
+.tw-chip-block--info { border-color: var(--gl-accent); }
+.tw-chip-block--warning { border-color: var(--gl-warning); background-color: rgba(240, 190, 60, 0.08); }
+.tw-chip-block--alarm { border-color: var(--gl-alarm); background-color: rgba(235, 80, 70, 0.10); }
+.tw-chip-block-id { font-size: 11px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-chip-block-note { font-size: 9px; color: var(--gl-text-dim); padding: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw-chip-block--alarm .tw-chip-block-note { color: rgb(255, 150, 140); }
+.tw-chip-more { font-size: 11px; -unity-font-style: bold; color: var(--gl-text-dim); padding: 6px 8px; margin: 0 0 4px 0;
+    border-radius: 5px; background-color: rgba(255, 255, 255, 0.04); -unity-text-align: middle-center; }
+
+/* Object popup above the yard calendar bar (YardClockView) */
+.tw-has-yard-clock .tw-detail { bottom: 128px; }
+.tw-compact.tw-has-yard-clock .tw-detail { bottom: 120px; height: 52%; }
+.tw-has-timeline.tw-has-yard-clock .tw-detail { bottom: 282px; }
+
+/* ---------- object search drawer (DashboardObjectSearch) ---------- */
+.tw-search-box {
+    flex-direction: row; align-items: center; flex-shrink: 0; margin: 12px 0 8px 0; height: 40px; padding: 0 4px 0 10px;
+    border-radius: 10px; border-width: 1px; border-color: var(--gl-border); background-color: rgba(255, 255, 255, 0.04);
+    transition-property: border-color, background-color; transition-duration: 0.15s;
+}
+.tw-search-box--focus, .tw-search-box:hover { border-color: rgba(84, 160, 255, 0.55); background-color: rgba(84, 160, 255, 0.06); }
+.tw-search-glass { width: 17px; height: 17px; flex-shrink: 0; color: var(--gl-text-dim); }
+.tw-search-field { flex-grow: 1; flex-shrink: 1; min-width: 0; margin: 0 0 0 6px; padding: 0; }
+.tw-search-field > .unity-base-text-field__input, .tw-search-field .unity-text-field__input {
+    border-width: 0; background-color: rgba(0, 0, 0, 0); padding: 0 4px; margin: 0; font-size: 14px; color: var(--gl-text);
+    -unity-text-align: middle-left; --unity-cursor-color: rgb(127, 184, 255); --unity-selection-color: rgba(84, 160, 255, 0.35);
+}
+.tw-search-placeholder { position: absolute; left: 37px; right: 44px; top: 0; bottom: 0; margin: 0; padding: 0;
+    font-size: 13px; color: var(--gl-text-dim); -unity-text-align: middle-left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+Button.tw-search-clear { display: none; width: 30px; height: 30px; flex-shrink: 0; margin: 0; border-width: 0; background-color: rgba(0, 0, 0, 0); }
+Button.tw-search-clear:hover { background-color: rgba(255, 255, 255, 0.08); }
+.tw-search-status { display: none; flex-shrink: 0; font-size: 11px; color: var(--gl-text-dim); padding: 0 2px; margin: 0 0 8px 0; white-space: normal; }
+.tw-search-status--notice { color: rgb(255, 205, 140); }
+.tw-search-results { padding-bottom: 6px; }
+
+.tw-search-card {
+    flex-direction: row; align-items: center; margin-bottom: 8px; padding: 10px 10px 10px 10px; border-radius: 10px;
+    border-width: 1px; border-color: var(--gl-border); background-color: var(--gl-surface);
+    transition-property: background-color, border-color, translate, opacity; transition-duration: 0.15s, 0.15s, 0.12s, 0.15s;
+}
+.tw-search-card:hover { background-color: rgb(42, 49, 64); border-color: rgba(84, 160, 255, 0.45); }
+.tw-search-card:focus { border-color: var(--gl-accent); }
+.tw-search-card--pressed { background-color: rgba(84, 160, 255, 0.16); translate: 0 1px; }
+.tw-search-card--nudge { translate: 4px 0; }
+.tw-search-tile {
+    width: 40px; height: 40px; flex-shrink: 0; margin-right: 10px; border-radius: 10px; align-items: center; justify-content: center;
+    background-color: rgba(84, 160, 255, 0.14); color: rgb(127, 184, 255);
+}
+.tw-search-tile-icon { width: 22px; height: 22px; }
+.tw-search-card--hull .tw-search-tile { background-color: rgba(170, 140, 255, 0.16); color: rgb(190, 170, 255); }
+.tw-search-card--block .tw-search-tile { background-color: rgba(84, 160, 255, 0.16); color: rgb(127, 184, 255); }
+.tw-search-card--crane .tw-search-tile { background-color: rgba(255, 196, 70, 0.15); color: rgb(255, 208, 110); }
+.tw-search-card--vehicle .tw-search-tile { background-color: rgba(255, 158, 56, 0.15); color: rgb(255, 184, 110); }
+.tw-search-card--facility .tw-search-tile { background-color: rgba(115, 222, 194, 0.14); color: rgb(130, 226, 200); }
+.tw-search-card--prop .tw-search-tile { background-color: rgba(255, 255, 255, 0.07); color: rgb(190, 198, 212); }
+.tw-search-body { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.tw-search-title { font-size: 13px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tw-search-meta { font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 2px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tw-search-sub { font-size: 11px; color: rgb(170, 178, 194); padding: 0; margin: 3px 0 0 0; white-space: normal; }
+/* No button or "보기" badge: the whole card is the control. Only an off-screen card shows its status chip. */
+.tw-search-chip { display: none; flex-shrink: 0; margin-left: 8px; padding: 3px 8px; border-radius: 9px; }
+.tw-search-chip-text { font-size: 10px; -unity-font-style: bold; padding: 0; margin: 0; }
+.tw-search-card--off { opacity: 0.72; }
+.tw-search-card--off .tw-search-tile { background-color: rgba(255, 255, 255, 0.05); color: var(--gl-text-dim); }
+.tw-search-card--off .tw-search-chip { display: flex; background-color: rgba(240, 190, 60, 0.13); }
+.tw-search-card--off .tw-search-chip-text { color: var(--gl-warning); }
+
+.tw-search-empty { align-items: center; padding: 28px 18px 18px 18px; }
+.tw-search-empty-icon { width: 40px; height: 40px; color: rgba(127, 184, 255, 0.7); margin-bottom: 12px; }
+.tw-search-empty-title { font-size: 14px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0 0 6px 0; }
+.tw-search-empty-text { font-size: 12px; color: var(--gl-text-dim); padding: 0; margin: 0; white-space: normal; -unity-text-align: upper-center; }
+
+/* touch and small screens: 44 px targets, larger type */
+.tw-compact .tw-search-box { height: 44px; margin: 8px 0 6px 0; }
+.tw-compact .tw-search-field > .unity-base-text-field__input, .tw-compact .tw-search-field .unity-text-field__input { font-size: 15px; }
+.tw-compact Button.tw-search-clear { width: 36px; height: 36px; }
+.tw-compact .tw-search-card { min-height: 56px; padding: 8px; }
+.tw-compact .tw-search-title { font-size: 14px; }
+.tw-compact .tw-search-meta, .tw-compact .tw-search-sub { font-size: 12px; }
+.tw-compact .tw-search-empty { padding: 14px 10px 10px 10px; }
+/* portrait bottom sheet: give the query and a few cards more height than the other drawers */
+.tw-portrait .tw-search { top: 30%; }
+
+/* ---------- walk pace (only while walking): segmented 느리게 / 보통 / 빠르게 under the top bar, right aligned ---------- */
+.tw-walk-pace {
+    position: absolute; top: 58px; right: 16px; height: 34px; padding: 2px; display: none;
+    flex-direction: row; align-items: center; border-radius: 9px; border-width: 1px;
+    border-color: var(--gl-border); background-color: rgba(16, 19, 26, 0.92);
+}
+.tw-walking .tw-walk-pace { display: flex; }
+.tw-walk-pace-label { font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 0 6px 0 8px; }
+Button.tw-pace-button {
+    height: 28px; min-width: 52px; margin: 0 0 0 2px; padding: 0 10px; border-radius: 7px; border-width: 1px;
+    border-color: rgba(0, 0, 0, 0); background-color: rgba(0, 0, 0, 0);
+    font-size: 12px; color: var(--gl-text-dim); -unity-text-align: middle-center;
+    transition-property: background-color, border-color; transition-duration: 0.12s;
+}
+Button.tw-pace-button:hover { background-color: rgba(255, 255, 255, 0.07); color: var(--gl-text); }
+Button.tw-pace-button:focus { border-color: rgba(120, 230, 190, 0.55); }
+Button.tw-pace-button--on, Button.tw-pace-button--on:hover {
+    background-color: rgb(20, 64, 52); border-color: rgb(64, 190, 150); color: rgb(150, 240, 205); -unity-font-style: bold;
+}
+.tw-compact .tw-walk-pace { top: 54px; right: 8px; height: 44px; }
+.tw-compact .tw-walk-pace-label { display: none; }
+.tw-compact Button.tw-pace-button { height: 38px; min-width: 56px; font-size: 13px; }
+/* While walking the pace bar takes the first row under the top bar: the guide, the panels and the crane card move below it. */
+.tw-walking .tw-walk-hint, .tw-walking .tw-utility-panel { top: 100px; }
+.tw-walking .tw-crane { top: 106px; }
+.tw-walking .tw-detail { top: 100px; }
+.tw-walking.tw-compact .tw-detail { top: auto; }
+.tw-walking.tw-compact .tw-walk-hint, .tw-walking.tw-compact .tw-utility-panel, .tw-walking.tw-compact .tw-crane { top: 104px; }
+
+/* ---------- walk character (admin only: tw-avatar-allowed while walking): toggle at the end of the pace bar, menu below it ---------- */
+Button.tw-avatar-toggle {
+    display: none; height: 28px; min-width: 64px; margin: 0 0 0 6px; padding: 0 10px; border-radius: 7px; border-width: 1px;
+    border-color: var(--gl-border); background-color: rgba(255, 255, 255, 0.05);
+    font-size: 12px; color: var(--gl-text); -unity-text-align: middle-center; -unity-font-style: bold;
+}
+.tw-avatar-allowed Button.tw-avatar-toggle { display: flex; }
+Button.tw-avatar-toggle:hover { background-color: rgba(255, 255, 255, 0.1); }
+Button.tw-avatar-toggle:focus, Button.tw-avatar-toggle--open { border-color: rgb(64, 190, 150); color: rgb(150, 240, 205); }
+.tw-avatar-menu {
+    position: absolute; top: 100px; right: 16px; width: 220px; padding: 8px; border-radius: 10px; display: none;
+}
+.tw-walking.tw-avatar-allowed .tw-avatar-menu--open { display: flex; }
+.tw-avatar-open .tw-walk-hint { display: none; }
+.tw-avatar-menu-title { font-size: 12px; -unity-font-style: bold; color: var(--gl-text-dim); padding: 0; margin: 0 0 6px 4px; }
+Button.tw-avatar-option {
+    flex-direction: column; align-items: flex-start; min-height: 44px; margin: 2px 0 0 0; padding: 5px 10px;
+    border-radius: 8px; border-width: 1px; border-color: rgba(0, 0, 0, 0); background-color: rgba(0, 0, 0, 0);
+}
+Button.tw-avatar-option:hover { background-color: rgba(255, 255, 255, 0.07); }
+Button.tw-avatar-option:focus { border-color: rgba(120, 230, 190, 0.55); }
+Button.tw-avatar-option--on, Button.tw-avatar-option--on:hover { background-color: rgb(20, 64, 52); border-color: rgb(64, 190, 150); }
+.tw-avatar-option-name { font-size: 13px; -unity-font-style: bold; color: var(--gl-text); padding: 0; margin: 0; }
+.tw-avatar-option--on .tw-avatar-option-name { color: rgb(150, 240, 205); }
+.tw-avatar-option-text { font-size: 11px; color: var(--gl-text-dim); padding: 0; margin: 1px 0 0 0; }
+.tw-compact Button.tw-avatar-toggle { height: 38px; min-width: 60px; font-size: 13px; }
+.tw-compact .tw-avatar-menu { top: 104px; right: 8px; width: 200px; }

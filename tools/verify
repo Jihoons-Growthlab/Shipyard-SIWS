@@ -1,0 +1,45 @@
+#!/bin/sh
+# Local checks shared by both coding agents. Use one or more explicit scopes.
+set -eu
+
+root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$root"
+
+if [ "$#" -eq 0 ]; then
+    printf '%s\n' 'Usage: tools/verify {erp|portal|twin|nginx} [...]' >&2
+    exit 2
+fi
+
+for scope in "$@"; do
+    case "$scope" in
+        erp|portal|twin) path="apps/$scope" ;;
+        nginx) path="ops/nginx" ;;
+        *) printf 'Unknown verification scope: %s\n' "$scope" >&2; exit 2 ;;
+    esac
+    git diff --check -- "$path"
+    git diff --cached --check -- "$path"
+    case "$scope" in
+        erp)
+            (
+                cd apps/erp
+                # The Postgres/Redis test options can create schemas or flush a Redis database.
+                # This shared check always uses the isolated SQLite and in-memory fixtures.
+                unset SHIPYARD_TEST_POSTGRES_URL SHIPYARD_TEST_REDIS_URL
+                python3 -B -m unittest discover -p 'test_*.py'
+            )
+            ;;
+        portal)
+            python3 - <<'PY'
+import ast
+from pathlib import Path
+
+files = sorted(Path("apps/portal").glob("*.py"))
+for file in files:
+    ast.parse(file.read_text(encoding="utf-8-sig"), filename=str(file))
+print(f"Portal Python syntax: {len(files)} files")
+PY
+            ;;
+        twin) tools/dev twin-test ;;
+        nginx) ops/nginx/check-preview.sh ;;
+    esac
+done

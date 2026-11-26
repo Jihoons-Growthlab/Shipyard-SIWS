@@ -37,7 +37,7 @@ def vworld_key():
             name, _, value = line.strip().partition('=')
             if name == 'VWORLD_API_KEY':
                 return value.strip().strip('"\'')
-    raise SystemExit('VWORLD_API_KEY가 없습니다. 환경변수로 주거나 ShipYard-ERP/.env에 넣으세요.')
+    raise SystemExit('VWORLD_API_KEY가 없습니다. 환경변수로 주거나 apps/erp/.env에 넣으세요.')
 
 
 def yard_to_geo(site, x, y):
@@ -145,7 +145,7 @@ def main():
     for old in ('satellite.png', 'satellite.png.meta'):
         (target / old).unlink(missing_ok=True)
     shutil.copyfile(out / 'satellite.jpg', target / 'satellite.jpg')
-    shutil.copyfile(out / 'satellite.json', target / 'satellite.json')
+    shutil.copyfile(out / 'satellite.json', target / 'satellite_meta.json')
     shutil.copyfile(out / 'terrain.bytes', target / 'terrain.bytes')
     shutil.copyfile(out / 'satellite_inner.jpg', target / 'satellite_inner.jpg')
     km = args.tiles * 256 * 156543.03 * math.cos(math.radians(lat)) / 2 ** args.zoom / 1000

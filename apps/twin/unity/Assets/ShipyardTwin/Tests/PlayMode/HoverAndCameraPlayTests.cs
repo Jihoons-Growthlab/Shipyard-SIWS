@@ -4,6 +4,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using UnityEngine.UIElements;
 
 namespace ShipyardTwin.Tests
 {
@@ -20,8 +21,10 @@ namespace ShipyardTwin.Tests
         [UnitySetUp]
         public IEnumerator LoadScene()
         {
-            SceneManager.LoadScene("ShipyardTwin");
             ShipyardTwinBootstrap.AsOfOverride = "2026-11-17";
+            SceneManager.LoadScene("ShipyardTwin");
+            _ship = null;
+            _rig = null;
             var deadline = Time.realtimeSinceStartup + 60f;
             for (var i = 0; Time.realtimeSinceStartup < deadline && (_ship == null || !_ship.Ready || _rig == null); i++)
             {
@@ -47,6 +50,272 @@ namespace ShipyardTwin.Tests
             _camera.transform.rotation = Quaternion.Euler(pitch, yaw, 0);
             _camera.transform.position = pivot - _camera.transform.rotation * Vector3.forward * distance;
             _rig.enabled = false;   // hold the pose
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator WalkButton_FollowsThirdPersonAvatarAndRestoresOrbit()
+        {
+            var dashboard = Object.FindFirstObjectByType<DashboardShellView>().GetComponent<UIDocument>().rootVisualElement;
+            var button = dashboard.Q("top-nav").Q<Button>("nav-walk");
+            Assert.IsNotNull(button);
+
+            var position = _camera.transform.position;
+            var rotation = _camera.transform.rotation;
+            var projection = _camera.projectionMatrix;
+            Submit(button);
+            Assert.IsTrue(_rig.IsWalking);
+            Assert.AreEqual("지도 시점", button.Q<Label>("nav-walk-label").text);
+            Assert.AreEqual(WalkPace.Normal, _rig.Pace);
+            Assert.That(_rig.PaceMetersPerSecond, Is.EqualTo(1.8f));
+            var worker = GameObject.Find("WalkWorker");
+            Assert.IsNotNull(worker);
+            Assert.IsNull(_camera.transform.Find("WalkWorkerArms"));
+            Assert.IsEmpty(worker.GetComponentsInChildren<Collider>());
+            Assert.IsNotEmpty(worker.GetComponentsInChildren<MeshRenderer>());
+            Assert.IsTrue(Physics.Raycast(worker.transform.position + Vector3.up, Vector3.down, out var ground, 2f));
+            Assert.That(ground.distance, Is.EqualTo(1f).Within(0.03f));
+            Assert.That(Vector3.Dot(_camera.transform.forward, worker.transform.position + Vector3.up * 1.15f - _camera.transform.position),
+                Is.GreaterThan(0.1f), "The camera looks at the avatar from behind.");
+            var aim = worker.transform.position + Vector3.up * 1.15f;
+            var cameraOffset = _camera.transform.position - aim;
+            Assert.Greater(cameraOffset.magnitude, 0.9f);
+            var cameraWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cameraWall.transform.SetPositionAndRotation(aim + cameraOffset.normalized * 0.7f, Quaternion.LookRotation(cameraOffset));
+            cameraWall.transform.localScale = new Vector3(2f, 2f, 0.1f);
+            Physics.SyncTransforms();
+            yield return null;
+            yield return null;
+            Assert.Less(Vector3.Distance(_camera.transform.position, aim), cameraOffset.magnitude - 0.3f, "A wall pulls the follow camera in.");
+            Object.Destroy(cameraWall);
+            yield return null;
+            var spawn = worker.transform.position;
+            var travelled = 0f;
+            var walkDirection = Vector2.zero;
+            foreach (var direction in new[] { Vector2.down, Vector2.right, Vector2.left, Vector2.up })
+            {
+                var start = worker.transform.position;
+                _rig.SetWalkInput(direction);
+                var deadline = Time.realtimeSinceStartup + 1.25f;
+                while (Time.realtimeSinceStartup < deadline)
+                {
+                    yield return null;
+                    travelled = Mathf.Max(travelled, Vector3.Distance(worker.transform.position, start));
+                    if (travelled > 0.4f) break;
+                }
+                if (travelled <= 0.4f) continue;
+                walkDirection = direction;
+                break;
+            }
+            _rig.SetWalkInput(Vector2.zero);
+            Assert.Greater(travelled, 0.4f, "Walk input moves the avatar along the yard at " + spawn);
+            Assert.IsNotNull(_camera.GetComponent<AudioSource>(), "A foot contact while walking plays a boot step.");
+            Assert.IsTrue(Physics.Raycast(worker.transform.position + Vector3.up, Vector3.down, out ground, 2f));
+            Assert.That(ground.distance, Is.EqualTo(1f).Within(0.03f));
+
+            var beforeBarrier = worker.transform.position;
+            var flatYaw = Quaternion.Euler(0f, _camera.transform.eulerAngles.y, 0f);
+            var forward = flatYaw * new Vector3(walkDirection.x, 0f, walkDirection.y);
+            var barrier = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            barrier.transform.SetPositionAndRotation(beforeBarrier + 0.8f * forward + 1.5f * Vector3.up, Quaternion.LookRotation(forward));
+            barrier.transform.localScale = new Vector3(4f, 3f, 0.2f);
+            Physics.SyncTransforms();
+            _rig.SetWalkInput(walkDirection);
+            yield return new WaitForSecondsRealtime(0.75f);
+            _rig.SetWalkInput(Vector2.zero);
+            Assert.Less(Vector3.Dot(worker.transform.position - beforeBarrier, forward), 0.55f,
+                "The avatar stops before a wall.");
+            Object.Destroy(barrier);
+
+            var slow = dashboard.Q<Button>("walk-pace-slow");
+            var normal = dashboard.Q<Button>("walk-pace-normal");
+            var fast = dashboard.Q<Button>("walk-pace-fast");
+            Assert.IsNotNull(slow);
+            Assert.IsNotNull(normal);
+            Assert.IsNotNull(fast);
+            Submit(slow);
+            Assert.AreEqual(WalkPace.Slow, _rig.Pace);
+            Assert.That(_rig.PaceMetersPerSecond, Is.EqualTo(1f));
+            Submit(fast);
+            Assert.AreEqual(WalkPace.Fast, _rig.Pace);
+            Assert.That(_rig.PaceMetersPerSecond, Is.EqualTo(3.2f));
+            Submit(normal);
+            Assert.AreEqual(WalkPace.Normal, _rig.Pace);
+            Submit(fast);
+
+            Submit(button);
+            Assert.IsFalse(_rig.IsWalking);
+            Assert.AreEqual("걸어보기", button.Q<Label>("nav-walk-label").text);
+            Assert.IsFalse(worker.activeInHierarchy);
+            Assert.That(Vector3.Distance(position, _camera.transform.position), Is.LessThan(0.01f));
+            Assert.That(Quaternion.Angle(rotation, _camera.transform.rotation), Is.LessThan(0.01f));
+            Assert.AreEqual(projection, _camera.projectionMatrix);
+            Submit(button);
+            Assert.AreEqual(WalkPace.Fast, _rig.Pace, "Returning to third person keeps the chosen pace.");
+        }
+
+        [UnityTest]
+        public IEnumerator WalkAvatar_ShowsEachFigureAndHidesThePreviousOne()
+        {
+            var palette = GrowthLab.Core.CoreBootstrap.Active.Context.Services.Get<ShipPalette>();
+            var yardShader = palette.Get("concrete").shader;
+            using var view = new WalkWorkerView(palette);
+            Transform previous = null;
+            foreach (var avatar in new[] { WalkAvatar.Worker, WalkAvatar.Steward, WalkAvatar.Master })
+            {
+                view.Show(avatar);
+                view.Update(Vector3.zero, 30f, 0.35f, 1f);
+                yield return null;
+                var root = GameObject.Find(WalkWorkerView.BodyRootName);
+                var active = root.transform.Find(avatar.ToString());
+                Assert.IsNotNull(active, avatar.ToString());
+                Assert.IsTrue(active.gameObject.activeInHierarchy, avatar.ToString());
+                Assert.IsNotEmpty(active.GetComponentsInChildren<MeshRenderer>());
+                foreach (var renderer in active.GetComponentsInChildren<MeshRenderer>())
+                    Assert.AreSame(yardShader, renderer.sharedMaterial.shader);
+                Assert.IsEmpty(active.GetComponentsInChildren<Collider>());
+                if (previous != null) Assert.IsFalse(previous.gameObject.activeInHierarchy);
+                previous = active;
+            }
+            view.Hide();
+            Assert.IsFalse(previous.gameObject.activeInHierarchy);
+        }
+
+        [UnityTest]
+        public IEnumerator WalkAvatar_OnlyTheAdminAccountCanChooseACharacter()
+        {
+            var dashboard = Object.FindFirstObjectByType<DashboardShellView>().GetComponent<UIDocument>().rootVisualElement;
+            var toggle = dashboard.Q<Button>("walk-avatar-toggle");
+            var menu = dashboard.Q("walk-avatar-menu");
+            Assert.IsNotNull(toggle);
+            Assert.IsNotNull(menu);
+            Assert.IsTrue(_rig.SetWalking(true));
+            _rig.ApplyWalkAccount("PROD");
+            yield return null;
+            Assert.IsFalse(_rig.CanChooseWalkAvatar);
+            Assert.IsFalse(dashboard.ClassListContains("tw-avatar-allowed"));
+            Assert.IsFalse(_rig.SetWalkAvatar(WalkAvatar.Master));
+            Assert.AreEqual(WalkAvatar.Worker, _rig.CurrentWalkAvatar);
+
+            _rig.ApplyWalkAccount("ADMIN");
+            yield return null;
+            Assert.IsTrue(_rig.CanChooseWalkAvatar);
+            Assert.IsTrue(dashboard.ClassListContains("tw-avatar-allowed"));
+            Assert.AreEqual(WalkAvatar.Steward, _rig.CurrentWalkAvatar);
+            Submit(toggle);
+            Assert.IsTrue(menu.ClassListContains("tw-avatar-menu--open"));
+            Submit(menu.Q<Button>("walk-avatar-master"));
+            Assert.AreEqual(WalkAvatar.Master, _rig.CurrentWalkAvatar);
+            Assert.AreEqual("무림고수", toggle.text);
+            Assert.IsFalse(menu.ClassListContains("tw-avatar-menu--open"));
+            var root = GameObject.Find(WalkWorkerView.BodyRootName).transform;
+            Assert.IsTrue(root.Find("Master").gameObject.activeInHierarchy);
+            Assert.IsFalse(root.Find("Steward").gameObject.activeInHierarchy);
+            Assert.IsTrue(_rig.SetWalking(false));
+            Assert.IsFalse(_rig.SetWalkAvatar(WalkAvatar.Worker));
+            Assert.IsTrue(_rig.SetWalking(true));
+            Assert.AreEqual(WalkAvatar.Master, _rig.CurrentWalkAvatar);
+
+            _rig.ApplyWalkAccount("EXEC");
+            yield return null;
+            Assert.IsFalse(_rig.CanChooseWalkAvatar);
+            Assert.IsFalse(dashboard.ClassListContains("tw-avatar-allowed"));
+            Assert.IsFalse(_rig.SetWalkAvatar(WalkAvatar.Worker));
+            Assert.AreEqual(WalkAvatar.Master, _rig.CurrentWalkAvatar);
+        }
+
+        private static void Submit(Button button)
+        {
+            using var submit = NavigationSubmitEvent.GetPooled();
+            submit.target = button;
+            button.SendEvent(submit);
+        }
+
+        [UnityTest]
+        public IEnumerator WalkHazard_ShowsForApproachingEquipmentAndClearsOnLeaving()
+        {
+            var dashboard = Object.FindFirstObjectByType<DashboardShellView>().GetComponent<UIDocument>().rootVisualElement;
+            var warning = dashboard.Q("walk-warning");
+            Assert.IsNotNull(warning);
+            Assert.AreEqual(PickingMode.Ignore, warning.pickingMode);
+            _ship.Calendar.Playing = false;
+            Assert.IsTrue(_rig.SetWalking(true));
+            var feet = GameObject.Find("WalkWorker").transform.position;
+            var baseline = _rig.WalkHazards.Count;
+            var vehicle = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            vehicle.transform.localScale = new Vector3(3f, 2f, 4f);
+            vehicle.transform.position = feet + Vector3.up + Vector3.forward * 200f;
+            var target = HoverTarget.Attach(vehicle, "중장비", "테스트 지게차").Identify(TargetCategory.Vehicle, "TEST-FL");
+            target.IsHeavyEquipment = true;
+            yield return null;
+            Assert.AreEqual(baseline, _rig.WalkHazards.Count);
+
+            vehicle.transform.position = feet + Vector3.up + Vector3.forward * 1.5f;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(baseline + 1, _rig.WalkHazards.Count);
+            Assert.IsTrue(_rig.WalkHazards.IsEstimated);
+            Assert.AreEqual("테스트 지게차", _rig.WalkHazards.Name);
+            Assert.IsTrue(warning.ClassListContains("tw-walk-warning--show"));
+            StringAssert.Contains("테스트 지게차", warning.Q<Label>("walk-warning-name").text);
+            StringAssert.Contains("위험반경 4 m", warning.Q<Label>("walk-warning-range").text);
+            StringAssert.Contains("추정", warning.Q<Label>("walk-warning-sim").text);
+
+            vehicle.transform.position = feet + Vector3.up + Vector3.forward * 200f;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(baseline, _rig.WalkHazards.Count);
+            Assert.AreEqual(baseline > 0, warning.ClassListContains("tw-walk-warning--show"));
+
+            vehicle.transform.position = feet + Vector3.up + Vector3.forward * 1.5f;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(baseline + 1, _rig.WalkHazards.Count);
+            Assert.IsTrue(_rig.SetWalking(false));
+            yield return null;
+            Assert.Zero(_rig.WalkHazards.Count);
+            Assert.IsFalse(warning.ClassListContains("tw-walk-warning--show"));
+            Object.Destroy(vehicle);
+        }
+
+        [UnityTest]
+        public IEnumerator YardSearch_FramesAFacilityAndOpensItsDetailWithoutSeeking()
+        {
+            var dock = _ship.Model.Facilities.First(f => f.kind == "도크" && f.HasFootprint);
+            var shell = Object.FindFirstObjectByType<DashboardShellView>();
+            var root = shell.GetComponent<UIDocument>().rootVisualElement;
+            Assert.IsTrue(_rig.SetWalking(true));
+            shell.OpenSearch();
+            root.Q<TextField>("search-field").value = dock.location;
+            var results = root.Q("search-results");
+            var deadline = Time.realtimeSinceStartup + 3f;
+            while (results.childCount == 0 && Time.realtimeSinceStartup < deadline) yield return null;
+
+            Assert.Greater(results.childCount, 0, "Typing shows matching cards without submitting the search.");
+            var card = results[0];
+            Assert.IsNull(card.Q<Button>(), "The whole card opens the result.");
+            Assert.IsFalse(card.ClassListContains("tw-search-card--off"));
+            var before = _ship.CurrentDate;
+            var selected = _ship.Selected;
+
+            using (var down = PointerDownEvent.GetPooled(new Event { type = EventType.MouseDown, button = 0 }))
+            {
+                down.target = card;
+                card.SendEvent(down);
+            }
+            using (var up = PointerUpEvent.GetPooled(new Event { type = EventType.MouseUp, button = 0 }))
+            {
+                up.target = card;
+                card.SendEvent(up);
+            }
+
+            Assert.IsFalse(shell.IsSearchOpen);
+            Assert.IsFalse(_rig.IsWalking, "Opening a map search result restores the map camera.");
+            Assert.IsTrue(ObjectDetailView.Active.IsOpen);
+            Assert.AreEqual(before, _ship.CurrentDate);
+            Assert.AreSame(selected, _ship.Selected);
+            Assert.That(_rig.PivotGoal.x, Is.EqualTo(dock.x).Within(dock.size_x_m));
+            Assert.That(_rig.PivotGoal.z, Is.EqualTo(dock.y).Within(dock.size_x_m));
             yield return null;
         }
 
@@ -144,7 +413,7 @@ namespace ShipyardTwin.Tests
             Vector3 pivot = _rig.PivotGoal;
             float yaw = _rig.YawGoal, pitch = _rig.PitchGoal, distance = _rig.DistanceGoal;
 
-            // Left drag sideways: the pivot slides along the camera's right axis (the screen plane), no orbit.
+            // Left drag sideways: the ground follows the cursor, so the pivot slides against the camera's right axis, no orbit.
             _rig.ApplyMouse(true, false, false, new Vector2(40f, 0f), new Vector2(3f, 2f), 0f);
             var moved = _rig.PivotGoal - pivot;
             Assert.Greater(moved.magnitude, 1f, "Left drag pans.");
@@ -152,7 +421,7 @@ namespace ShipyardTwin.Tests
             Assert.AreEqual(pitch, _rig.PitchGoal, 1e-4f);
             var right = Quaternion.Euler(pitch, yaw, 0) * Vector3.right;
             Assert.AreEqual(-1f, Vector3.Dot(moved.normalized, right), 1e-3f, "Against the drag along the screen's x axis.");
-            // Left drag up/down moves along the screen's y axis (kept above the ground).
+            // Left drag up/down moves over the ground (kept above it).
             pivot = _rig.PivotGoal;
             _rig.ApplyMouse(true, false, false, new Vector2(0f, -3f), Vector2.zero, 0f);
             Assert.Greater(Vector3.Distance(_rig.PivotGoal, pivot), 0.01f, "Vertical left drag pans.");
@@ -164,13 +433,19 @@ namespace ShipyardTwin.Tests
             Assert.AreEqual(0f, Vector3.Distance(_rig.PivotGoal, pivot), 1e-4f, "Right drag does not pan.");
 
             yaw = _rig.YawGoal;
-            _rig.ApplyMouse(false, false, true, Vector2.zero, new Vector2(3f, 2f), 0f);
+            _rig.ApplyMouse(false, false, true, new Vector2(30f, 20f), Vector2.zero, 0f);
             Assert.Greater(Vector3.Distance(_rig.PivotGoal, pivot), 1f, "Middle drag pans.");
             Assert.AreEqual(pivot.y, _rig.PivotGoal.y, 1e-4f, "Middle drag stays on the ground plane.");
             Assert.AreEqual(yaw, _rig.YawGoal, 1e-4f);
 
             _rig.ApplyMouse(false, false, false, Vector2.zero, Vector2.zero, 1f);
             Assert.Less(_rig.DistanceGoal, distance, "Wheel up zooms in.");
+            distance = _rig.DistanceGoal;
+            _rig.ApplyMouse(false, false, false, Vector2.zero, Vector2.zero, 400f);
+            Assert.Greater(_rig.DistanceGoal, distance * 0.5f, "A huge browser wheel delta zooms a few notches, not to the limit.");
+            pivot = _rig.PivotGoal;
+            _rig.ApplyMouse(false, false, false, Vector2.zero, Vector2.zero, 1f, new Vector2(Screen.width * 0.8f, Screen.height * 0.3f));
+            Assert.Greater(Vector3.Distance(_rig.PivotGoal, pivot), 0.5f, "Zooming in off-centre moves towards the cursor.");
 
             // A press over the UI blocks the whole drag until release; a press in the scene does not.
             Assert.IsTrue(OrbitCameraRig.DragBlocked(false, pressed: true, held: true, overUi: true));

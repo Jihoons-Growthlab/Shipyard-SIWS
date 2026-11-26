@@ -49,6 +49,9 @@ namespace ShipyardTwin
         /// <summary>Paving within this distance of the shoreline wall has no terrain right under it (m, > one grid cell).</summary>
         private const float ShoreWallSetback = 24f;
 
+        /// <summary>Grass verge outside the site outline (m); YardEnvironment plants its trees inside it.</summary>
+        public const float VergeWidth = 32f;
+
         [Tooltip("Distance over which land is graded from quay level back to the natural terrain (m).")]
         [SerializeField] private float _grading = 140f;
 
@@ -77,44 +80,67 @@ namespace ShipyardTwin
             }
 
             var docks = YardLayout.Docks(twin);
-            var shore = YardLayout.Shoreline(twin);
-            var site = YardEnvironment.SiteOutline(twin);   // same paving as YardEnvironment (pier root included)
-            var band = DredgeBand(twin, site);
-            var graded = GradedEdges(site, shore, terrain, twin.yard.site, band);
-            bool OpenWater(Vector2 p) => Dredged(band, shore, p, 100f) < 0f;      // even a hill would be dredged here
+            // Per zone, in its local axes: the same paving as YardEnvironment (pier root included), its dredged band
+            // and the outline edges that meet graded ground.
+            var zones = YardLayout.Zones(twin).Select(zone =>
+            {
+                var outline = YardEnvironment.SiteOutline(zone);
+                var band = DredgeBand(zone, outline);
+                return (Zone: zone, Site: outline, Shore: zone.Shore, Band: band,
+                    Graded: GradedEdges(zone, outline, zone.Shore, terrain, twin.yard.site, band));
+            }).ToList();
+            float Dredge(Vector2 p, float natural) =>
+                zones.Aggregate(natural, (h, z) => Dredged(z.Band, z.Shore, z.Zone.ToLocal(p), h));
+            bool OpenWater(Vector2 p) => Dredge(p, 100f) < 0f;      // even a hill would be dredged here
+            float SiteDistance(Vector2 p) => zones.Min(z => Polygon2D.Distance(z.Site, z.Zone.ToLocal(p)));
             // Cut only the dock pits (dry, below sea level). Under the rest of the site the terrain lies just below
             // the paving (no gap along the outline); the open water in front of the yard is pushed under the sea.
-            var pits = docks.Select(d => Polygon2D.Rect(d.x - d.size_x_m / 2f - 8f, d.x + d.size_x_m / 2f + 8f,
-                d.y - d.size_y_m / 2f - 8f, d.y + d.size_y_m / 2f + 8f)).ToList();
+            var pits = docks.Select(d => Polygon2D.Oriented(new Vector2(d.x, d.y), d.heading_deg, -d.size_x_m / 2f - 8f, d.size_x_m / 2f + 8f,
+                -d.size_y_m / 2f - 8f, d.size_y_m / 2f + 8f)).ToList();
             bool Excluded(Vector2 p) => pits.Any(r => Polygon2D.Contains(r, p));
             float Height(Vector2 p, float natural)
             {
-                if (Polygon2D.Contains(site, p))
+                foreach (var z in zones)
                 {
-                    // Behind the vertical quay wall the ground drops below the wall's foot: a terrain cell spanning
-                    // the shoreline would otherwise slope from the paving out past the wall and show above the water.
-                    // Only behind the wall (and mounds): near graded edges the ground still meets the paving.
-                    return p.x > shore - ShoreWallSetback && DistanceToGradedEdges(graded, p) > ShoreWallSetback
-                        ? YardLayout.SeaLevel - 4f
-                        : YardLayout.QuayLevel - 0.3f;
+                    var local = z.Zone.ToLocal(p);
+                    if (Polygon2D.Contains(z.Site, local))
+                    {
+                        // Behind the vertical quay wall the ground drops below the wall's foot: a terrain cell spanning
+                        // the shoreline would otherwise slope from the paving out past the wall and show above the water.
+                        // Only behind the wall (and mounds): near graded edges the ground still meets the paving.
+                        return local.x > z.Shore - ShoreWallSetback && DistanceToGradedEdges(z.Graded, local) > ShoreWallSetback
+                            ? YardLayout.SeaLevel - 4f
+                            : YardLayout.QuayLevel - 0.3f;
+                    }
                 }
 
-                natural = Dredged(band, shore, p, natural);
+                natural = Dredge(p, natural);
 
                 if (natural <= 0f)
                 {
                     return YardLayout.SeaLevel + natural;                        // seabed stays below the sea plane
                 }
 
-                var t = Mathf.SmoothStep(0f, 1f, Polygon2D.Distance(site, p) / _grading);
+                var t = Mathf.SmoothStep(0f, 1f, SiteDistance(p) / _grading);
                 return Mathf.Lerp(YardLayout.QuayLevel - 0.3f, YardLayout.SeaLevel + natural, t);
             }
 
             var inner = palette.Create("SatelliteDetail");
             var detail = terrain.Meta.HasInner ? Resources.Load<Texture2D>(Folder + "satellite_inner") : null;
             // Ground cut down by more than 1.5 m: drawn as an earth bank instead of stretched imagery.
-            bool Bank(Vector2 p, float natural) => natural - Dredged(band, shore, p, natural) > 1.5f && natural > 0f && !Polygon2D.Contains(site, p);
-            var mesh = BuildMesh(terrain, twin.yard.site, Height, Excluded, detail != null ? _innerSubdivisions : 0, Bank);
+            bool Bank(Vector2 p, float natural) => natural - Dredge(p, natural) > 1.5f && natural > 0f && SiteDistance(p) > 0f;
+            // Landscaped verge around the paving: the near band and wherever grading moved the ground by more than a
+            // metre (imagery stretched over earthworks looks like grey smears). Land only; the satellite takes over beyond.
+            bool Grass(Vector2 p, float natural)
+            {
+                var dredged = Dredge(p, natural);
+                if (dredged <= 0.5f) return false;
+                var distance = SiteDistance(p);
+                return distance > 0f && (distance < VergeWidth ||
+                                         distance < 90f && Mathf.Abs(Height(p, natural) - (YardLayout.SeaLevel + dredged)) > 2.5f);
+            }
+
+            var mesh = BuildMesh(terrain, twin.yard.site, Height, Excluded, detail != null ? _innerSubdivisions : 0, Bank, Grass);
             gameObject.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = gameObject.AddComponent<MeshRenderer>();
             var materials = new List<Material> { Imagery(palette.Create("Satellite"), image) };
@@ -124,28 +150,30 @@ namespace ShipyardTwin
             }
 
             materials.Add(palette.Get("bank"));
+            materials.Add(palette.Get("embankment"));
             renderer.sharedMaterials = materials.Take(mesh.subMeshCount).ToArray();
 
             // Natural coastline (not the site's own edge nor the cut-out water in front): surf and boulders.
             var coast = Coastline(mesh, terrain.Vertices, twin.yard.site)
-                .Where(s => Polygon2D.Distance(site, (s.A + s.B) / 2f) > 45f && !OpenWater((s.A + s.B) / 2f)).ToList();
+                .Where(s => SiteDistance((s.A + s.B) / 2f) > 45f && !OpenWater((s.A + s.B) / 2f)).ToList();
             BuildSurf(coast);
             BuildBoulders(coast, palette, terrain);
             HoverTarget.Occluder(gameObject);   // hills and shore hide what lies behind them
+            YardWalkSurface.Mark(gameObject);
             context.Log.Info("ShipyardTwin", "Satellite terrain: zoom " + terrain.Meta.zoom + ", " + terrain.Meta.size_px + " px, grid " +
                                              terrain.Meta.grid + (detail != null ? ", detail zoom " + terrain.Meta.inner_zoom : string.Empty) +
                                              ", coast " + coast.Count + " segments (" + terrain.Meta.attribution + ")");
         }
 
         /// <summary>Site outline edges that meet graded ground (neither the shoreline wall nor a rubble mound).</summary>
-        public static List<(Vector2 A, Vector2 B)> GradedEdges(List<Vector2> site, float shore, TerrainModel terrain, YardSite yardSite, (float, float) band)
+        public static List<(Vector2 A, Vector2 B)> GradedEdges(YardZone zone, List<Vector2> site, float shore, TerrainModel terrain, YardSite yardSite, (float, float) band)
         {
             var edges = new List<(Vector2, Vector2)>();
             for (var i = 0; i < site.Count; i++)
             {
                 Vector2 a = site[i], b = site[(i + 1) % site.Count];
                 var wall = Mathf.Abs(a.x - shore) < 0.01f && Mathf.Abs(b.x - shore) < 0.01f;
-                if (!wall && !YardEnvironment.IsSeawardEdge(a, b, terrain, yardSite, band, shore))
+                if (!wall && !YardEnvironment.IsSeawardEdge(zone, a, b, terrain, yardSite, band, shore))
                 {
                     edges.Add((a, b));
                 }
@@ -168,13 +196,13 @@ namespace ShipyardTwin
         }
 
         /// <summary>
-        /// Along-shore extent of the dredged water: from below the lowest berth (pier berths are a beam and fenders wide)
-        /// to 10 m past the highest dock gate or berth; the natural coast beyond stays as it is.
+        /// Along-shore extent (local y of a zone) of the dredged water: from below the lowest berth (pier berths are a
+        /// beam and fenders wide) to 10 m past the highest dock gate or berth; the natural coast beyond stays as it is.
         /// </summary>
-        public static (float Start, float End) DredgeBand(TwinFile twin, List<Vector2> site)
+        public static (float Start, float End) DredgeBand(YardZone zone, List<Vector2> site)
         {
-            var docks = twin.yard.facilities.Where(f => f.HasFootprint && f.kind == "도크").ToList();
-            var piers = twin.yard.facilities.Where(f => f.HasFootprint && f.kind == "안벽").ToList();
+            var docks = zone.Docks.Select(zone.Local).ToList();
+            var piers = zone.Others.Where(f => f.kind == "안벽").Select(zone.Local).ToList();
             const float berth = 60f;
             var ends = docks.Select(f => (f.y - f.size_y_m / 2f, f.y + f.size_y_m / 2f))
                 .Concat(piers.Select(f => (f.y - f.size_y_m / 2f - berth, f.y + f.size_y_m / 2f + berth))).ToList();
@@ -230,7 +258,7 @@ namespace ShipyardTwin
         /// subdivisions² quads that use the detail image; its outer edges lie on the coarse cell edges (no cracks).
         /// </summary>
         public static Mesh BuildMesh(TerrainModel terrain, YardSite site, Func<Vector2, float, float> height, Func<Vector2, bool> exclude = null,
-            int subdivisions = 0, Func<Vector2, float, bool> bank = null)
+            int subdivisions = 0, Func<Vector2, float, bool> bank = null, Func<Vector2, float, bool> grass = null)
         {
             var meta = terrain.Meta;
             var n = terrain.Vertices;
@@ -240,12 +268,15 @@ namespace ShipyardTwin
             var uvs = new List<Vector2>(n * n);
             var yardPoints = new List<Vector2>(n * n);
             var banked = new List<bool>(n * n);
+            var grassed = new List<bool>(n * n);
             void Vertex(double px, double py, float natural, Vector2 uv)
             {
                 var (lat, lon) = ShipCoordinates.MercatorPixelToGeo(meta.zoom, meta.tile_x0 * 256.0 + px, meta.tile_y0 * 256.0 + py);
                 var yard = ShipCoordinates.GeoToYard(site, lat, lon);
                 yardPoints.Add(yard);
-                banked.Add(bank != null && bank(yard, natural));
+                var isBank = bank != null && bank(yard, natural);
+                banked.Add(isBank);
+                grassed.Add(!isBank && grass != null && grass(yard, natural));
                 vertices.Add(ShipCoordinates.YardToUnity(yard.x, yard.y, height(yard, natural)));
                 uvs.Add(uv);
             }
@@ -283,11 +314,18 @@ namespace ShipyardTwin
             bool Detailed(int i, int j) => i >= ci0 && i <= ci1 && j >= cj0 && j <= cj1;
             var coarse = new List<int>(grid * grid * 6);
             var bankQuads = new List<int>();
+            var grassQuads = new List<int>();
             void Quad(List<int> target, int a, int b, int c, int d)
             {
                 if (banked[a] || banked[b] || banked[c] || banked[d])
                 {
                     bankQuads.AddRange(new[] { a, b, c, d });
+                    return;
+                }
+
+                if (grassed[a] && grassed[b] && grassed[c] && grassed[d])
+                {
+                    grassQuads.AddRange(new[] { a, b, c, d });
                     return;
                 }
 
@@ -338,20 +376,28 @@ namespace ShipyardTwin
                 }
             }
 
-            // Bank quads get their own vertices with metric UVs (5 m texture tiles come from the paint).
-            var bankTriangles = new List<int>();
-            for (var k = 0; k < bankQuads.Count; k += 4)
+            // Bank and grass quads get their own vertices with metric UVs (texture tiles in metres come from the paint).
+            List<int> Metric(List<int> quads)
             {
-                var start = vertices.Count;
-                for (var m = 0; m < 4; m++)
+                var triangles = new List<int>();
+                for (var k = 0; k < quads.Count; k += 4)
                 {
-                    var src = bankQuads[k + m];
-                    vertices.Add(vertices[src]);
-                    uvs.Add(yardPoints[src]);
+                    var start = vertices.Count;
+                    for (var m = 0; m < 4; m++)
+                    {
+                        var src = quads[k + m];
+                        vertices.Add(vertices[src]);
+                        uvs.Add(yardPoints[src]);
+                    }
+
+                    triangles.AddRange(new[] { start, start + 1, start + 2, start, start + 2, start + 3 });
                 }
 
-                bankTriangles.AddRange(new[] { start, start + 1, start + 2, start, start + 2, start + 3 });
+                return triangles;
             }
+
+            var bankTriangles = Metric(bankQuads);
+            var grassTriangles = Metric(grassQuads);
 
             var mesh = new Mesh { name = "SatelliteTerrain", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             mesh.SetVertices(vertices);
@@ -362,10 +408,9 @@ namespace ShipyardTwin
                 parts.Add(fine);
             }
 
-            if (bankTriangles.Count > 0)
-            {
-                parts.Add(bankTriangles);
-            }
+            // Always present (possibly empty) so the material slots stay: imagery, [detail], bank, grass.
+            parts.Add(bankTriangles);
+            parts.Add(grassTriangles);
 
             mesh.subMeshCount = parts.Count;
             for (var k = 0; k < parts.Count; k++)

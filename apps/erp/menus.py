@@ -16,12 +16,14 @@ MBOM_MENU = '제조 BOM (MBOM)'
 MODULES = {
     '업무 홈': [HOME],
     '계획': [PLAN_MASTER, PLAN_HULL, PLAN_OUTFIT, PLAN_SHORT, MBOM_MENU, '자재 소요계획 (MRP)'],
-    '실행': ['구매·입고', '자재 출고', '강재 추적', '작업지시·실적', '블록 조립·공수', '의장품', '블록 이동'],
+    '실행': ['구매·입고', '자재 출고', '강재 추적', '작업지시·실적', '블록 조립·공수', '블록 이동'],
+    '의장': ['의장관리'],
     '진척·품질': ['생산 진척', '물량·공수 진척', '품질 검사'],
     '관리': ['기준정보', '설계 도면', '형상·배치', ADMIN_MENU],
 }
 # Former menu names → the menus that took over their views (group permissions are carried over on start).
 MENU_RENAMES = {
+    '의장품': ['의장관리'],
     '호선·블록 계획': [PLAN_MASTER, PLAN_HULL],
     '12주 계획': [PLAN_SHORT],
     '제약 일정 (APS)': [PLAN_SHORT],
@@ -42,7 +44,8 @@ MASTER = [['hulls', 'hulls', '호선'], ['vessel_details', 'vessel_details', '�
 VIEWS = {
     PLAN_MASTER: [['hull_milestones', 'hull_milestones', '호선 주요 일정'], ['hull_overview', None, '배치·위험 점검'],
                   ['dock_bookings', 'dock_bookings', '도크 점유 예약'], ['berth_assignments', 'berth_assignments', '선석 배정'],
-                  ['milestone_history', None, '일정 변경 이력']],
+                  ['milestone_history', None, '일정 변경 이력'],
+                  ['shift_point_positions', 'shift_point_positions', '이동 지점 좌표']],
     PLAN_HULL: [['erection_plans', 'erection_plans', '탑재 계획'], ['erection_links', 'erection_links', '탑재 선후행'],
                 ['block_stock_plans', 'block_stock_plans', '블록 적치 계획'],
                 ['block_structure', 'block_structure', '블록 구성'], ['erection_schedule', None, '탑재 일정 제안'],
@@ -69,7 +72,11 @@ VIEWS = {
     '작업지시·실적': [['orders', 'orders', '작업지시'], ['production_results', 'results', '실적·검사']],
     '블록 조립·공수': [['block_stages', 'block_stages', '조립 단계'], ['work_logs', 'work_logs', '공수·진척 실적'],
                   ['erection_records', 'erection_records', '탑재 검사 실적']],
-    '의장품': [['outfitting_items', 'outfitting_items', '의장품'], ['outfitting_events', 'outfitting_events', '진행 이력']],
+    '의장관리': [['outfit_works', 'outfit_works', '작업 패키지'], ['outfit_orders', 'outfit_orders', '작업지시'],
+               ['outfit_installations', 'outfit_installations', '설치 실적'], ['outfit_inspections', 'outfit_inspections', '검사·재검사'],
+               ['outfit_progress', None, '구역별 진척'], ['outfitting_items', 'outfitting_items', '의장품'],
+               ['outfitting_events', 'outfitting_events', '의장품 이력'],
+               ['outfit_item_links', 'outfit_item_links', '의장품·작업 연결']],
     '블록 이동': [['blocks', None, '블록 위치'], ['moves', 'moves', '이동 이력'], ['telemetry', 'telemetry', '장비 관측']],
     '생산 진척': [['progress', None, '공정별 계획·실적'], ['readiness', None, '작업 착수 준비']],
     '물량·공수 진척': [['hull_progress', None, '호선 물량 진척'], ['block_progress', None, '블록 물량·공수'],
@@ -91,7 +98,9 @@ VIEWS = {
               ['hull_geometry', 'hull_geometry', '호선 형상 기준'], ['block_geometry', 'block_geometry', '블록 형상·위치']],
     '형상·배치': [['yard_sites', 'yard_sites', '조선소 부지(위경도)'], ['location_geometry', 'location_geometry', '시설 좌표·크기'],
               ['location_geo', None, '시설 위경도'], ['hull_placements', 'hull_placements', '도크 선체 배치'],
-              ['erection_timeline', None, '탑재 순서(트윈)']],
+              ['erection_timeline', None, '탑재 순서(트윈)'], ['crane_rails', 'crane_rails', '크레인 레일'],
+              ['crane_kinematics', 'crane_kinematics', '크레인 붐 제원'], ['crane_load_charts', 'crane_load_charts', '크레인 정격하중표'],
+              ['crane_lifts', 'crane_lifts', '크레인 인양 지점']],
     ADMIN_MENU: [['accounts', 'accounts', '사용자'], ['user_groups', 'user_groups', '그룹'],
                  ['group_permissions', None, '메뉴 권한'], ['audit_log', None, '감사 이력'],
                  ['login_events', None, '로그인 이력']],
@@ -101,6 +110,7 @@ EXTRA_ACTIONS = {
     PLAN_MASTER: ['milestone_update'],
     PLAN_HULL: ['block_gate_checks'],
     MBOM_MENU: ['mbom_publish'],
+    '의장관리': ['outfit_conditions', 'outfit_materials'],
     '설계 도면': ['ebom_publish'],
     '블록 이동': ['confirm'],
     '품질 검사': ['ncr_close', 'punch_close'],
@@ -140,6 +150,7 @@ ROUTE_DEPS = {
     'mbom_links': ['mbom_inputs', 'ebom_items'],
     'drawing_revisions': ['ebom_revisions'],
     'outfit_links': ['outfit_works'],
+    'outfit_orders': ['outfit_conditions', 'outfit_materials'],
     'berth_occupancy': ['berths'],
 }
 # Form field -> route that supplies its select options.
@@ -156,9 +167,9 @@ REFS = {'hull': 'hulls', 'block': 'blocks', 'location': 'locations', 'destinatio
         'from_point': 'shift_points', 'to_point': 'shift_points', 'work': 'outfit_works', 'predecessor_work': 'outfit_works',
         'drawing_revision': 'drawing_revisions', 'base_ebom': 'ebom_revisions', 'ebom': 'ebom_revisions',
         'base_mbom': 'mbom_revisions', 'mbom': 'mbom_revisions', 'op': 'mbom_ops', 'ebom_item': 'ebom_items',
-        'input': 'mbom_inputs'}
+        'input': 'mbom_inputs', 'outfit_order': 'outfit_orders', 'outfit_installation': 'outfit_installations'}
 # Actions whose `id` field picks an existing document.
-ID_SOURCES = {'forecast': 'activities', 'results': 'orders', 'confirm': 'moves', 'milestone_update': 'hull_milestones',
+ID_SOURCES = {'outfit_conditions': 'outfit_works', 'outfit_item_links': 'outfitting_items', 'shift_point_positions': 'shift_points', 'forecast': 'activities', 'results': 'orders', 'confirm': 'moves', 'milestone_update': 'hull_milestones',
               'ncr_close': 'ncrs', 'punch_close': 'punch_items', 'account_update': 'accounts',
               'account_password_reset': 'accounts', 'ebom_publish': 'ebom_revisions', 'mbom_publish': 'mbom_revisions',
               'bom_adjustment_close': 'bom_adjustments'}

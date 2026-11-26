@@ -1,0 +1,56 @@
+# Installed by install-owner.py. Tailscale Serve is the HTTPS endpoint.
+worker_processes 1;
+pid nginx.pid;
+error_log stderr warn;
+
+events {
+    worker_connections 256;
+}
+
+http {
+    access_log off;
+    server_tokens off;
+
+    client_body_temp_path temp/client_body;
+    proxy_temp_path temp/proxy;
+    fastcgi_temp_path temp/fastcgi;
+    uwsgi_temp_path temp/uwsgi;
+    scgi_temp_path temp/scgi;
+
+    map $http_tailscale_user_login $siws_owner {
+        default 0;
+        "__SIWS_OWNER__" 1;
+    }
+
+    map $http_origin $portal_origin {
+        default "";
+        "https://__SIWS_HOST__:8443" "http://127.0.0.1:8080";
+    }
+
+    map "$request_method:$portal_origin" $reject_origin {
+        default 0;
+        "POST:" 1;
+    }
+
+    server {
+        listen 127.0.0.1:18082;
+        server_name __SIWS_HOST__;
+        client_max_body_size 64k;
+
+        if ($host != "__SIWS_HOST__") { return 403; }
+        if ($siws_owner = 0) { return 403; }
+        if ($reject_origin = 1) { return 403; }
+
+        location / {
+            proxy_pass http://127.0.0.1:8080;
+            proxy_http_version 1.1;
+            proxy_set_header Host 127.0.0.1:8080;
+            proxy_set_header Origin $portal_origin;
+            proxy_set_header Tailscale-User-Login "";
+            proxy_set_header Tailscale-User-Name "";
+            proxy_set_header Tailscale-User-Profile-Pic "";
+            proxy_buffering off;
+            proxy_redirect off;
+        }
+    }
+}

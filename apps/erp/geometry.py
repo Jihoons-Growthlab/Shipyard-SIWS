@@ -30,6 +30,14 @@ CREATE TABLE IF NOT EXISTS yard_sites(id TEXT PRIMARY KEY, name TEXT NOT NULL, l
 CREATE TABLE IF NOT EXISTS hull_placements(hull TEXT PRIMARY KEY REFERENCES hulls(id),
  dock TEXT NOT NULL REFERENCES locations(id), origin_x REAL NOT NULL, origin_y REAL NOT NULL,
  origin_z REAL NOT NULL, heading_deg REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS crane_rails(equipment TEXT PRIMARY KEY REFERENCES equipment(id),
+ rail_x0 REAL NOT NULL, rail_y0 REAL NOT NULL, rail_x1 REAL NOT NULL, rail_y1 REAL NOT NULL,
+ gauge_m REAL NOT NULL, jib_heading_deg REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS crane_kinematics(equipment TEXT PRIMARY KEY REFERENCES equipment(id),
+ boom_m REAL NOT NULL, pivot_height_m REAL NOT NULL, luff_min_deg REAL NOT NULL, luff_max_deg REAL NOT NULL,
+ rest_luff_deg REAL NOT NULL, staging_offset_m REAL NOT NULL, danger_margin_m REAL NOT NULL DEFAULT 5);
+CREATE TABLE IF NOT EXISTS crane_load_charts(equipment TEXT NOT NULL REFERENCES crane_kinematics(equipment),
+ radius_m REAL NOT NULL, capacity_t REAL NOT NULL, PRIMARY KEY(equipment, radius_m));
 '''
 FOOTPRINT_KEYS = ('size_x_m', 'size_y_m', 'size_z_m')
 COORDINATES = ('x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'cog_x', 'cog_y', 'cog_z')
@@ -39,21 +47,39 @@ FIELDS = {
     'location_geometry': ('location', 'x', 'y', 'z', 'heading_deg', 'size_x_m', 'size_y_m', 'size_z_m'),
     'yard_sites': ('id', 'name', 'lat', 'lon', 'x_axis_bearing_deg'),
     'hull_placements': ('hull', 'dock', 'origin_x', 'origin_y', 'origin_z', 'heading_deg'),
+    # A rail-mounted crane travels between the two rail end points (yard m, rail centre line); gauge_m is the rail
+    # spacing and jib_heading_deg the direction its jib or boom points over the work area (from yard +x toward +y).
+    'crane_rails': ('equipment', 'rail_x0', 'rail_y0', 'rail_x1', 'rail_y1', 'gauge_m', 'jib_heading_deg'),
+    # Slewing jib of a rail crane: boom length from the slewing pivot (pivot_height_m above the quay), boom angle range
+    # from horizontal (the hook radius is boom_m · cos(angle)), the boom angle while parked and how far behind the rail
+    # (away from the jib direction) loads are staged on the quay for pick-up. The danger zone around the crane is the
+    # maximum hook radius plus danger_margin_m (swinging load, falling objects): nobody stands there during a lift.
+    'crane_kinematics': ('equipment', 'boom_m', 'pivot_height_m', 'luff_min_deg', 'luff_max_deg', 'rest_luff_deg',
+                         'staging_offset_m', 'danger_margin_m'),
+    # Load chart of a rail jib crane: the rated load (t) at a hook radius (m from the slewing centre). Between two
+    # points the rating of the next larger radius applies (conservative); beyond the last point nothing may be lifted.
+    'crane_load_charts': ('equipment', 'radius_m', 'capacity_t'),
 }
+KINEMATICS = {'boom_m', 'pivot_height_m', 'luff_min_deg', 'luff_max_deg', 'rest_luff_deg', 'staging_offset_m',
+              'danger_margin_m'}
+DANGER_MARGIN = 5.0   # crane_kinematics.danger_margin_m when left empty
+RAIL = {'rail_x0', 'rail_y0', 'rail_x1', 'rail_y1'}
 PREFIXES = {}
-OPTIONAL = {'block_geometry': {'model_asset'}, 'location_geometry': set(FOOTPRINT_KEYS)}
+OPTIONAL = {'block_geometry': {'model_asset'}, 'location_geometry': set(FOOTPRINT_KEYS), 'crane_kinematics': {'danger_margin_m'}}
 DATES = set()
 PLACEMENT = {'origin_x', 'origin_y', 'origin_z', 'heading_deg'}
 FOOTPRINT = set(FOOTPRINT_KEYS)
 # Latitude/longitude need more than 3 decimals: free-precision finite numbers (app.FLOAT_KEYS).
 FLOATS = {'lat', 'lon'}
 # x, y are already crane telemetry measures in the core app; z joins them for yard positions.
-MEASURES = {'depth_m', 'draft_m', 'frame_spacing_m', *COORDINATES, *PLACEMENT, *FOOTPRINT, 'z', 'x_axis_bearing_deg'}
+MEASURES = {'depth_m', 'draft_m', 'frame_spacing_m', *COORDINATES, *PLACEMENT, *FOOTPRINT, 'z', 'x_axis_bearing_deg',
+            *RAIL, 'gauge_m', 'jib_heading_deg', *KINEMATICS, 'radius_m', 'capacity_t'}
 NUMBERS = set(MEASURES)
-SIGNED = set(COORDINATES) | PLACEMENT | FOOTPRINT | {'z', 'x_axis_bearing_deg'}
+SIGNED = set(COORDINATES) | PLACEMENT | FOOTPRINT | RAIL | {'z', 'x_axis_bearing_deg', 'jib_heading_deg'}  # range checked in write
 READS = set(FIELDS) | {'erection_timeline', 'location_geo'}
 KEYS = {'hull_geometry': 'hull', 'block_geometry': 'block', 'location_geometry': 'location', 'hull_placements': 'hull',
-        'yard_sites': 'id'}
+        'yard_sites': 'id', 'crane_rails': 'equipment', 'crane_kinematics': 'equipment'}
+RAIL_TYPES = {'골리앗 크레인', '갠트리 크레인', '지브 크레인'}   # rail-mounted lifting equipment
 MODEL_ASSET = re.compile(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,199}')
 
 
@@ -68,6 +94,48 @@ def upgrade_location_footprints(db):
         for key in FOOTPRINT_KEYS:
             if key not in columns:
                 db.execute(f'ALTER TABLE location_geometry ADD COLUMN {key} REAL NOT NULL DEFAULT 0')
+
+
+def upgrade_crane_kinematics(db):
+    """danger_margin_m on a crane_kinematics table created before it existed."""
+    import storage
+
+    if isinstance(db, storage.Postgres):
+        db.execute(f'ALTER TABLE crane_kinematics ADD COLUMN IF NOT EXISTS danger_margin_m DOUBLE PRECISION NOT NULL DEFAULT {DANGER_MARGIN}')
+    elif 'danger_margin_m' not in {row['name'] for row in db.execute('PRAGMA table_info(crane_kinematics)')}:
+        db.execute(f'ALTER TABLE crane_kinematics ADD COLUMN danger_margin_m REAL NOT NULL DEFAULT {DANGER_MARGIN}')
+
+
+def reach(k):
+    """(smallest, largest) hook radius of a slewing jib: boom · cos(max / min boom angle)."""
+    return (k['boom_m'] * math.cos(math.radians(k['luff_max_deg'])), k['boom_m'] * math.cos(math.radians(k['luff_min_deg'])))
+
+
+def lift_radius(rail, pick, drop):
+    """Hook radius (m) a lift needs: the crane stands on the rail point nearest the middle of pick-up and set-down
+    (as the ERP replay places it, yardsim) and slews between them; the farther of the two counts."""
+    ax, ay, bx, by = rail['rail_x0'], rail['rail_y0'], rail['rail_x1'], rail['rail_y1']
+    dx, dy = bx - ax, by - ay
+    mx, my = (pick[0] + drop[0]) / 2, (pick[1] + drop[1]) / 2
+    t = max(0.0, min(1.0, ((mx - ax) * dx + (my - ay) * dy) / (dx * dx + dy * dy or 1.0)))
+    sx, sy = ax + t * dx, ay + t * dy
+    return max(math.hypot(pick[0] - sx, pick[1] - sy), math.hypot(drop[0] - sx, drop[1] - sy))
+
+
+def chart_points(db, equipment):
+    return [(r['radius_m'], r['capacity_t']) for r in db.execute(
+        'SELECT radius_m, capacity_t FROM crane_load_charts WHERE equipment=? ORDER BY radius_m', (equipment,))]
+
+
+def chart_capacity(points, radius):
+    """Rated load (t) at a hook radius from load chart points [(radius_m, capacity_t)]: the rating of the first point at
+    or beyond the radius (conservative between points), 0 beyond the last point, None without a chart."""
+    if not points:
+        return None
+    for r, capacity in sorted(points):
+        if radius <= r + 1e-6:
+            return capacity
+    return 0.0
 
 
 def upsert(db, table, v):
@@ -94,6 +162,48 @@ def write(db, action, v, api):
         other = db.execute('SELECT id FROM yard_sites WHERE id<>?', (v['id'],)).fetchone()
         require(not other, '조선소 부지는 1곳만 등록합니다. 기존 부지를 수정하세요.')
         return upsert(db, action, v)
+    if action == 'crane_rails':
+        lookup(db, 'equipment', v['equipment'])
+        spec = db.execute('SELECT equipment_type FROM equipment_specs WHERE equipment=?', (v['equipment'],)).fetchone()
+        require(spec and spec['equipment_type'] in RAIL_TYPES, '장비 능력에 레일 주행 크레인으로 등록된 장비를 선택하세요.')
+        length = math.hypot(v['rail_x1'] - v['rail_x0'], v['rail_y1'] - v['rail_y0'])
+        require(10 <= length <= 2000, '레일 길이는 10~2000 m로 입력하세요.')
+        # Goliath and gantry cranes straddle whole docks (one may span two docks side by side); jib cranes stand on a portal.
+        widest = 200 if spec['equipment_type'] in {'골리앗 크레인', '갠트리 크레인'} else 60
+        require(2 <= v['gauge_m'] <= widest, f'레일 간격은 2~{widest} m로 입력하세요.')
+        require(0 <= v['jib_heading_deg'] < 360, '지브 방향은 0 이상 360 미만의 각도(도)로 입력하세요.')
+        return upsert(db, action, v)
+    if action == 'crane_kinematics':
+        require(db.execute('SELECT 1 FROM crane_rails WHERE equipment=?', (v['equipment'],)).fetchone(),
+                '크레인 레일이 등록된 장비를 선택하세요.')
+        require(5 <= v['boom_m'] <= 120, '붐 길이는 5~120 m로 입력하세요.')
+        require(3 <= v['pivot_height_m'] <= 80, '선회 지지점 높이는 3~80 m로 입력하세요.')
+        require(0 <= v['luff_min_deg'] < v['luff_max_deg'] <= 85, '붐 각도는 0 ≤ 최소 < 최대 ≤ 85도로 입력하세요.')
+        require(v['luff_min_deg'] <= v['rest_luff_deg'] <= v['luff_max_deg'], '대기 붐 각도는 최소~최대 사이로 입력하세요.')
+        require(0 <= v['staging_offset_m'] <= v['boom_m'] * math.cos(math.radians(v['luff_min_deg'])),
+                '자재 적치 거리는 0 이상, 최대 작업 반경 이하로 입력하세요.')
+        v['danger_margin_m'] = DANGER_MARGIN if v['danger_margin_m'] is None else v['danger_margin_m']
+        require(0 < v['danger_margin_m'] <= 30, '위험반경 여유는 0 초과 30 m 이하로 입력하세요.')
+        return upsert(db, action, v)
+    if action == 'crane_load_charts':
+        k = db.execute('SELECT * FROM crane_kinematics WHERE equipment=?', (v['equipment'],)).fetchone()
+        require(k, '붐 제원(crane_kinematics)이 등록된 크레인을 선택하세요.')
+        low, high = reach(k)
+        require(low - 0.05 <= v['radius_m'] <= high + 0.05,
+                f'작업 반경은 붐 제원의 최소~최대 반경({low:.1f}~{high:.1f} m) 안에서 입력하세요.')
+        spec = db.execute('SELECT capacity_t FROM equipment_specs WHERE equipment=?', (v['equipment'],)).fetchone()
+        require(0 < v['capacity_t'] <= (spec['capacity_t'] if spec else 0),
+                f'정격하중은 0 초과, 장비 정격하중 {spec["capacity_t"] if spec else 0}t 이하로 입력하세요.')
+        others = [(r['radius_m'], r['capacity_t']) for r in db.execute(
+            'SELECT radius_m, capacity_t FROM crane_load_charts WHERE equipment=? AND radius_m<>?', (v['equipment'], v['radius_m']))]
+        # A longer radius never lifts more: the chart only falls with the radius.
+        require(all(c >= v['capacity_t'] for r, c in others if r < v['radius_m']) and
+                all(c <= v['capacity_t'] for r, c in others if r > v['radius_m']),
+                '정격하중은 작업 반경이 커질수록 같거나 작아야 합니다.')
+        db.execute('INSERT INTO crane_load_charts(equipment, radius_m, capacity_t) VALUES(?,?,?) '
+                   'ON CONFLICT(equipment, radius_m) DO UPDATE SET capacity_t=excluded.capacity_t',
+                   (v['equipment'], v['radius_m'], v['capacity_t']))
+        return f'{v["equipment"]}@{v["radius_m"]:g}'
     if action == 'hull_placements':
         lookup(db, 'hulls', v['hull'])
         require(lookup(db, 'locations', v['dock'])['kind'] in {'도크', '야드'}, '배치 시설은 도크 또는 야드로 지정하세요.')
@@ -221,4 +331,14 @@ def read(db, table):
         return [dict(row) for row in db.execute(f'SELECT * FROM {table} ORDER BY hull')]
     if table == 'location_geometry':
         return [dict(row) for row in db.execute('SELECT * FROM location_geometry ORDER BY location')]
+    if table == 'crane_kinematics':
+        return [dict(row) for row in db.execute('''SELECT k.*, e.name FROM crane_kinematics k JOIN equipment e ON e.id=k.equipment
+            ORDER BY k.equipment''')]
+    if table == 'crane_load_charts':
+        return [dict(row) for row in db.execute('''SELECT c.*, e.name FROM crane_load_charts c JOIN equipment e ON e.id=c.equipment
+            ORDER BY c.equipment, c.radius_m''')]
+    if table == 'crane_rails':
+        return [dict(row) for row in db.execute('''SELECT r.*, e.name, s.equipment_type, s.capacity_t, s.station
+            FROM crane_rails r JOIN equipment e ON e.id=r.equipment LEFT JOIN equipment_specs s ON s.equipment=r.equipment
+            ORDER BY r.equipment''')]
     return None

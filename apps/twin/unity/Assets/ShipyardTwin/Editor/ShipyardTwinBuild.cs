@@ -46,6 +46,8 @@ namespace ShipyardTwin.Editor
             EditorBuildSettings.scenes = new EditorBuildSettingsScene[0];
             CreateScene();
             PlayerSettings.productName = "ShipyardTwin";
+            PlayerSettings.SplashScreen.show = false;          // no Unity logo: the Hoon Heavy Industries intro is the first screen
+            PlayerSettings.SplashScreen.showUnityLogo = false;
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone, "com.shipyardtwin.app");
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
             PlayerSettings.defaultScreenWidth = 1600;
@@ -69,6 +71,59 @@ namespace ShipyardTwin.Editor
                 throw new Exception("ShipyardTwin build " + summary.result);
             }
         }
+
+        private static string WebBuildPath =>
+            Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "Builds", "WebGL"));
+
+        /// <summary>
+        /// Browser build for the Portal (/twin/): Mac, Windows and iPhone open the same page. Gzip without the JS
+        /// decompression fallback: the Portal serves the .gz files with Content-Encoding: gzip.
+        /// </summary>
+        [MenuItem("ShipyardTwin/Build WebGL")]
+        public static void BuildWeb()
+        {
+            EditorBuildSettings.scenes = new EditorBuildSettingsScene[0];
+            CreateScene();
+            PlayerSettings.productName = "ShipyardTwin";
+            PlayerSettings.SplashScreen.show = false;          // no Unity logo: the Hoon Heavy Industries intro is the first screen
+            PlayerSettings.SplashScreen.showUnityLogo = false;
+            PlayerSettings.runInBackground = true;
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+            PlayerSettings.WebGL.decompressionFallback = false;
+            PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+            PlayerSettings.WebGL.nameFilesAsHashes = false;
+            PlayerSettings.WebGL.template = "PROJECT:Shipyard";   // Assets/WebGLTemplates/Shipyard: full window, Korean loading screen
+
+            // The Portal is plain HTTP over Tailscale (WireGuard-encrypted); without this UnityWebRequest refuses
+            // the ERP calls. Only the WebGL player gets it: the setting is restored after the build.
+            var insecure = PlayerSettings.insecureHttpOption;
+            PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
+            BuildReport report;
+            try
+            {
+                report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = Array.ConvertAll(EditorBuildSettings.scenes, s => s.path),
+                    locationPathName = WebBuildPath,
+                    target = BuildTarget.WebGL,
+                    options = BuildOptions.None,
+                });
+            }
+            finally
+            {
+                PlayerSettings.insecureHttpOption = insecure;
+            }
+
+            var summary = report.summary;
+            Debug.Log($"[ShipyardTwin] build: {summary.result}, {summary.totalErrors} errors, {summary.outputPath}");
+            if (summary.result != BuildResult.Succeeded)
+            {
+                throw new Exception("ShipyardTwin WebGL build " + summary.result);
+            }
+        }
+
+        public static void BuildWebBatch() => RunBatch(BuildWeb);
 
         public static void CreateSceneBatch() => RunBatch(CreateScene);
 
